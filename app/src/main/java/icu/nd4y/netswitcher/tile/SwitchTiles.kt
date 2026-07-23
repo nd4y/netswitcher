@@ -10,6 +10,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.action.ActionDispatcher
+import icu.nd4y.netswitcher.action.Feedback
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
@@ -53,7 +54,12 @@ abstract class BaseSwitchTile(private val slot: Int) : TileService() {
                         subtitle = "Переключаю…"
                         updateTile()
                     }
-                    ActionDispatcher.runNow(applicationContext, profile)
+                    Feedback.announceStart(
+                        applicationContext,
+                        profile.name,
+                        ActionDispatcher.toastsEnabled,
+                    )
+                    ActionDispatcher.runNow(applicationContext, profile, alreadyAnnounced = true)
                     refresh()
                 }
             }

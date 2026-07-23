@@ -71,6 +71,7 @@ dependencies {
     // Persisted configuration
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.yaml:snakeyaml:2.2")
 
     // Home screen widget
     implementation("androidx.glance:glance-appwidget:1.1.1")
@@ -81,4 +82,6 @@ dependencies {
     implementation("dev.rikka.shizuku:provider:13.1.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
 }

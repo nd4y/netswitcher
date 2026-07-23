@@ -35,6 +35,8 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
+import icu.nd4y.netswitcher.action.ActionDispatcher
+import icu.nd4y.netswitcher.action.Feedback
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
@@ -50,9 +52,10 @@ class NetSwitcherWidget : GlanceAppWidget() {
         val config = ConfigRepository.get(context).flow.first()
         val buttons = config.resolve(config.widgetIds)
         val active = buttons.associate { it.id to NetworkStatus.quickActive(context, it) }
+        val busy = ActionDispatcher.running.value
         provideContent {
             GlanceTheme {
-                WidgetBody(config, buttons, active)
+                WidgetBody(config, buttons, active, busy)
             }
         }
     }
@@ -63,6 +66,7 @@ private fun WidgetBody(
     config: Config,
     buttons: List<Profile>,
     active: Map<String, Boolean>,
+    busyId: String?,
 ) {
     Column(
         modifier = GlanceModifier
@@ -94,7 +98,12 @@ private fun WidgetBody(
             Row(modifier = GlanceModifier.fillMaxWidth()) {
                 rowItems.forEachIndexed { columnIndex, profile ->
                     if (columnIndex > 0) Spacer(GlanceModifier.size(6.dp))
-                    WidgetButton(profile, active[profile.id] == true, GlanceModifier.defaultWeight())
+                    WidgetButton(
+                        profile = profile,
+                        isActive = active[profile.id] == true,
+                        isBusy = busyId == profile.id,
+                        modifier = GlanceModifier.defaultWeight(),
+                    )
                 }
                 // Keep the last row's cells the same width as the full rows.
                 repeat(columns - rowItems.size) {
@@ -110,12 +119,19 @@ private fun WidgetBody(
 private fun WidgetButton(
     profile: Profile,
     isActive: Boolean,
+    isBusy: Boolean,
     modifier: GlanceModifier,
 ) {
-    val background =
-        if (isActive) GlanceTheme.colors.primaryContainer else GlanceTheme.colors.secondaryContainer
-    val foreground =
-        if (isActive) GlanceTheme.colors.onPrimaryContainer else GlanceTheme.colors.onSecondaryContainer
+    val background = when {
+        isBusy -> GlanceTheme.colors.tertiaryContainer
+        isActive -> GlanceTheme.colors.primaryContainer
+        else -> GlanceTheme.colors.secondaryContainer
+    }
+    val foreground = when {
+        isBusy -> GlanceTheme.colors.onTertiaryContainer
+        isActive -> GlanceTheme.colors.onPrimaryContainer
+        else -> GlanceTheme.colors.onSecondaryContainer
+    }
 
     Column(
         modifier = modifier
@@ -124,7 +140,10 @@ private fun WidgetButton(
             .padding(horizontal = 6.dp, vertical = 10.dp)
             .clickable(
                 actionRunCallback<RunProfileAction>(
-                    actionParametersOf(RunProfileAction.profileIdKey to profile.id)
+                    actionParametersOf(
+                        RunProfileAction.profileIdKey to profile.id,
+                        RunProfileAction.profileNameKey to profile.name,
+                    )
                 )
             ),
         horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
@@ -138,7 +157,7 @@ private fun WidgetButton(
         )
         Spacer(GlanceModifier.size(4.dp))
         Text(
-            text = profile.name,
+            text = if (isBusy) "переключаю…" else profile.name,
             maxLines = 1,
             style = TextStyle(
                 color = foreground,
@@ -158,12 +177,17 @@ class RunProfileAction : ActionCallback {
         parameters: ActionParameters,
     ) {
         val profileId = parameters[profileIdKey] ?: return
-        icu.nd4y.netswitcher.action.ActionDispatcher.runNow(context, profileId)
+        val label = parameters[profileNameKey]
+        if (label != null) {
+            Feedback.announceStart(context, label, ActionDispatcher.toastsEnabled)
+        }
+        ActionDispatcher.runNow(context, profileId, alreadyAnnounced = label != null)
         NetSwitcherWidget().updateAll(context)
     }
 
     companion object {
         val profileIdKey = ActionParameters.Key<String>("profileId")
+        val profileNameKey = ActionParameters.Key<String>("profileName")
     }
 }
 

@@ -99,27 +99,76 @@ fun EditProfileDialog(
                         "Просто выключает Wi-Fi.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
+
+                    ProfileKind.WIFI_ON -> Text(
+                        "Включает радио Wi-Fi и отдаёт выбор сети автоподключению системы.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+
+                    ProfileKind.WIFI_TOGGLE -> Text(
+                        "Одна кнопка: включает Wi-Fi, если он выключен, и наоборот.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+
+                    ProfileKind.CELLULAR_TOGGLE -> Column {
+                        Text(
+                            "Одна кнопка: включает и выключает мобильные данные.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        CellularFields(draft, sims) { draft = it }
+                    }
+
+                    ProfileKind.ETHERNET_TOGGLE -> Column {
+                        Text(
+                            "Одна кнопка: поднимает и опускает проводной интерфейс. " +
+                                "Как правило требует root.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = draft.ethernetInterface,
+                            onValueChange = { draft = draft.copy(ethernetInterface = it) },
+                            label = { Text("Интерфейс (например eth0)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    ProfileKind.AIRPLANE_TOGGLE -> Text(
+                        "Одна кнопка: включает и выключает режим полёта.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
 
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(12.dp))
+                if (!draft.kind.isToggle) {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
 
-                Text("Мобильные данные", style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(6.dp))
-                SelectorRow(
-                    options = MobileDataAction.entries.map { it to mobileDataLabel(it) },
-                    selected = draft.mobileData,
-                    onSelect = { draft = draft.copy(mobileData = it) },
-                )
-
-                if (draft.kind != ProfileKind.WIFI) {
-                    Spacer(Modifier.height(8.dp))
-                    ToggleRow(
-                        label = "Выключать Wi-Fi",
-                        checked = draft.disableWifi,
-                        onChange = { draft = draft.copy(disableWifi = it) },
+                    Text("Мобильные данные", style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(6.dp))
+                    SelectorRow(
+                        options = MobileDataAction.entries.map { it to mobileDataLabel(it) },
+                        selected = draft.mobileData,
+                        onSelect = { draft = draft.copy(mobileData = it) },
                     )
+
+                    if (draft.kind == ProfileKind.WIFI) {
+                        Spacer(Modifier.height(8.dp))
+                        ToggleRow(
+                            label = "Повторное нажатие отключает от сети",
+                            checked = draft.tapAgainDisconnects,
+                            onChange = { draft = draft.copy(tapAgainDisconnects = it) },
+                        )
+                    } else if (draft.kind != ProfileKind.WIFI_ON) {
+                        Spacer(Modifier.height(8.dp))
+                        ToggleRow(
+                            label = "Выключать Wi-Fi",
+                            checked = draft.disableWifi,
+                            onChange = { draft = draft.copy(disableWifi = it) },
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -302,6 +351,11 @@ private fun kindLabel(kind: ProfileKind): String = when (kind) {
     ProfileKind.CELLULAR -> "LTE / SIM"
     ProfileKind.ETHERNET -> "Ethernet"
     ProfileKind.WIFI_OFF -> "Выключить Wi-Fi"
+    ProfileKind.WIFI_ON -> "Включить Wi-Fi"
+    ProfileKind.WIFI_TOGGLE -> "⇄ Wi-Fi"
+    ProfileKind.CELLULAR_TOGGLE -> "⇄ Моб. данные"
+    ProfileKind.ETHERNET_TOGGLE -> "⇄ Ethernet"
+    ProfileKind.AIRPLANE_TOGGLE -> "⇄ Авиарежим"
 }
 
 private fun mobileDataLabel(action: MobileDataAction): String = when (action) {
@@ -320,4 +374,11 @@ private fun applyKindDefaults(profile: Profile, kind: ProfileKind): Profile = wh
 
     ProfileKind.WIFI_OFF ->
         profile.copy(kind = kind, mobileData = MobileDataAction.KEEP, disableWifi = true)
+
+    ProfileKind.WIFI_ON ->
+        profile.copy(kind = kind, mobileData = MobileDataAction.KEEP, disableWifi = false)
+
+    ProfileKind.WIFI_TOGGLE, ProfileKind.CELLULAR_TOGGLE,
+    ProfileKind.ETHERNET_TOGGLE, ProfileKind.AIRPLANE_TOGGLE,
+        -> profile.copy(kind = kind, mobileData = MobileDataAction.KEEP, disableWifi = false)
 }

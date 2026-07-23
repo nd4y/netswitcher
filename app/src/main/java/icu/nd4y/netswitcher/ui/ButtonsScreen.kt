@@ -58,6 +58,20 @@ fun ButtonsScreen(
     ) {
         Spacer(Modifier.height(12.dp))
 
+        Section("Главный экран приложения") {
+            Text(
+                text = "Профили-переключатели рисуются компактным рядом сверху, " +
+                    "остальные — крупными кнопками ниже.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            OrderedPicker(
+                all = config.profiles,
+                selected = config.homeIds,
+                onChange = { ids -> controller.edit { it.copy(homeIds = ids) } },
+            )
+        }
+
         Section("Ярлыки (удержание иконки приложения)") {
             Text(
                 text = "Лаунчер обычно показывает 4–5 верхних ярлыков. " +

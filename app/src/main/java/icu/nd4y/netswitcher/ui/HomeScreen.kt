@@ -59,12 +59,19 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
     val running by ActionDispatcher.running.collectAsStateWithLifecycle()
     val lastResult by ActionDispatcher.lastResult.collectAsStateWithLifecycle()
 
-    LaunchedEffect(tick, refreshKey, config.backend, running) {
+    var states by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+
+    LaunchedEffect(tick, refreshKey, config, running) {
         if (running != null) return@LaunchedEffect
+        states = config.profiles.associate { it.id to NetworkStatus.quickActive(context, it) }
         val state = PrivilegeManager.resolve(config.backend)
         privilege = state
         snapshot = NetworkStatus.read(context, state.shell)
     }
+
+    val shown = config.homeProfiles()
+    val toggles = shown.filter { it.kind.isToggle }
+    val actions = shown.filterNot { it.kind.isToggle }
 
     Column(
         modifier = modifier
@@ -107,29 +114,61 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text("Быстрое переключение", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-
-        // A plain chunked Row grid: a lazy grid inside a scrolling column is more
-        // trouble than it is worth for a handful of buttons.
-        config.profiles.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth()) {
-                pair.forEachIndexed { index, profile ->
-                    if (index > 0) Spacer(Modifier.width(10.dp))
-                    ProfileButton(
-                        profile = profile,
-                        busy = running == profile.id,
-                        modifier = Modifier.weight(1f),
-                        onClick = { scope.launch { ActionDispatcher.runNow(context, profile) } },
-                    )
+        if (toggles.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Text("Переключатели", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            toggles.chunked(4).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEachIndexed { index, profile ->
+                        if (index > 0) Spacer(Modifier.width(8.dp))
+                        ToggleButton(
+                            profile = profile,
+                            isOn = states[profile.id] == true,
+                            busy = running == profile.id,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                scope.launch { ActionDispatcher.runNow(context, profile) }
+                            },
+                        )
+                    }
+                    repeat(4 - row.size) {
+                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.weight(1f))
+                    }
                 }
-                if (pair.size == 1) {
-                    Spacer(Modifier.width(10.dp))
-                    Spacer(Modifier.weight(1f))
-                }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(10.dp))
+        }
+
+        if (actions.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text("Быстрое переключение", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+
+            // A plain chunked Row grid: a lazy grid inside a scrolling column is more
+            // trouble than it is worth for a handful of buttons.
+            actions.chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth()) {
+                    pair.forEachIndexed { index, profile ->
+                        if (index > 0) Spacer(Modifier.width(10.dp))
+                        ProfileButton(
+                            profile = profile,
+                            busy = running == profile.id,
+                            isActive = states[profile.id] == true,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                scope.launch { ActionDispatcher.runNow(context, profile) }
+                            },
+                        )
+                    }
+                    if (pair.size == 1) {
+                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
         }
 
         Spacer(Modifier.height(6.dp))
@@ -167,14 +206,76 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
     }
 }
 
+/** Compact square button that both reports and flips a piece of connectivity state. */
 @Composable
-private fun ProfileButton(
+private fun ToggleButton(
     profile: Profile,
+    isOn: Boolean,
     busy: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    ElevatedCard(modifier = modifier.fillMaxWidth()) {
+    val container =
+        if (isOn) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceVariant
+    val content =
+        if (isOn) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (busy) {
+                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(
+                    painter = painterResource(profile.iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = profile.name,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = if (isOn) "вкл." else "выкл.",
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileButton(
+    profile: Profile,
+    busy: Boolean,
+    isActive: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        colors = if (isActive) {
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        } else {
+            CardDefaults.elevatedCardColors()
+        },
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

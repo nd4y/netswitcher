@@ -1,0 +1,130 @@
+# NetSwitcher configuration
+# Импорт: Настройки → Импорт конфигурации (YAML)
+#
+# Ключ id связывает профиль с кнопками в списках home / shortcuts / widget / tiles.
+# Всегда пишите id в кавычках: в YAML 1.1 голые off/on/yes/no читаются как булевы.
+#
+# kind:
+#   WIFI            — подключиться к конкретной сети
+#   WIFI_ON         — только включить радио, сеть выберет автоподключение
+#   WIFI_OFF        — только выключить радио
+#   CELLULAR        — уйти на мобильную сеть (можно закрепить SIM)
+#   ETHERNET        — освободить маршрут под проводной адаптер
+#   WIFI_TOGGLE     — переключатель Wi-Fi
+#   CELLULAR_TOGGLE — переключатель мобильных данных
+#   ETHERNET_TOGGLE — переключатель проводного интерфейса
+#   AIRPLANE_TOGGLE — переключатель авиарежима
+version: 1
+backend: AUTO          # AUTO | SHIZUKU | ROOT | NONE
+showToasts: true
+verboseLog: false
+widgetColumns: 2
+
+profiles:
+  - id: "wifi_sw"
+    name: "Wi-Fi"
+    kind: WIFI_TOGGLE
+  - id: "lte_sw"
+    name: "LTE"
+    kind: CELLULAR_TOGGLE
+    subscriptionId: -1   # -1 = не менять SIM
+  - id: "eth_sw"
+    name: "Ethernet"
+    kind: ETHERNET_TOGGLE
+    ethernetInterface: "eth0"
+  - id: "air_sw"
+    name: "Авиарежим"
+    kind: AIRPLANE_TOGGLE
+  - id: "home"
+    name: "Home"
+    kind: WIFI
+    ssid: "Home"
+    security: WPA2
+    password: ""
+    tapAgainDisconnects: true
+    mobileData: KEEP
+  - id: "home5"
+    name: "Home 5G"
+    kind: WIFI
+    ssid: "Home-5G"
+    security: WPA2
+    password: ""
+    tapAgainDisconnects: true
+    mobileData: KEEP
+  - id: "guest"
+    name: "Guest"
+    kind: WIFI
+    ssid: "Guest"
+    security: WPA2
+    password: ""
+    tapAgainDisconnects: true
+    mobileData: KEEP
+  - id: "iot"
+    name: "IoT"
+    kind: WIFI
+    ssid: "IoT"
+    security: WPA2
+    password: ""
+    tapAgainDisconnects: true
+    mobileData: KEEP
+  - id: "lte"
+    name: "LTE only"
+    kind: CELLULAR
+    subscriptionId: -1   # -1 = не менять SIM
+    mobileData: ENABLE
+    disableWifi: true
+  - id: "wifion"
+    name: "Wi-Fi on"
+    kind: WIFI_ON
+    mobileData: KEEP
+  - id: "wifioff"
+    name: "Wi-Fi off"
+    kind: WIFI_OFF
+    mobileData: KEEP
+    disableWifi: true
+  - id: "eth"
+    name: "Ethernet only"
+    kind: ETHERNET
+    ethernetInterface: "eth0"
+    mobileData: DISABLE
+    disableWifi: true
+
+# Кнопки на главном экране приложения (порядок важен).
+# Профили-переключатели рисуются компактным рядом сверху.
+home:
+  - "wifi_sw"
+  - "lte_sw"
+  - "eth_sw"
+  - "air_sw"
+  - "home"
+  - "home5"
+  - "guest"
+  - "iot"
+  - "lte"
+  - "wifion"
+  - "wifioff"
+  - "eth"
+# Ярлыки на удержании иконки приложения (порядок важен)
+shortcuts:
+  - "wifi_sw"
+  - "lte_sw"
+  - "home"
+  - "air_sw"
+# Кнопки на виджете (порядок важен)
+widget:
+  - "wifi_sw"
+  - "lte_sw"
+  - "eth_sw"
+  - "air_sw"
+  - "home"
+  - "home5"
+  - "guest"
+  - "iot"
+# Плитки быстрых настроек: номер плитки -> id профиля
+tiles:
+  "1": "wifi_sw"
+  "2": "lte_sw"
+  "3": "eth_sw"
+  "4": "air_sw"
+  "5": "home"
+  "6": "home5"

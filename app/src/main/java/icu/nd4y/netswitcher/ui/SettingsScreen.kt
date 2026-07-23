@@ -3,6 +3,9 @@ package icu.nd4y.netswitcher.ui
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import icu.nd4y.netswitcher.action.SurfaceSync
 import icu.nd4y.netswitcher.data.Backend
 import icu.nd4y.netswitcher.data.Config
+import icu.nd4y.netswitcher.data.ConfigRepository
+import icu.nd4y.netswitcher.data.YamlConfig
 import icu.nd4y.netswitcher.engine.ShizukuShell
 import kotlinx.coroutines.launch
 
@@ -49,6 +54,51 @@ fun SettingsScreen(
     }
     val binderAlive = shizukuState.first
     val granted = shizukuState.second
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/yaml")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val outcome = runCatching {
+                val text = YamlConfig.encode(ConfigRepository.get(context).current())
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(text.toByteArray())
+                } ?: error("не удалось открыть файл на запись")
+            }
+            toast(
+                context,
+                outcome.fold(
+                    onSuccess = { "Конфигурация сохранена" },
+                    onFailure = { "Ошибка экспорта: ${it.message}" },
+                )
+            )
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val outcome = runCatching {
+                val text = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.readBytes().decodeToString()
+                } ?: error("не удалось прочитать файл")
+                val parsed = YamlConfig.decode(text).getOrThrow()
+                ConfigRepository.get(context).update { parsed }
+                SurfaceSync.syncAll(context)
+                parsed.profiles.size
+            }
+            toast(
+                context,
+                outcome.fold(
+                    onSuccess = { "Импортировано профилей: $it" },
+                    onFailure = { "Ошибка импорта: ${it.message}" },
+                )
+            )
+        }
+    }
 
     Column(
         modifier = modifier
@@ -136,6 +186,29 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+        Text("Конфигурация (YAML)", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp)) {
+                OutlinedButton(
+                    onClick = { exportLauncher.launch("netswitcher.yaml") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Экспорт в файл") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { importLauncher.launch(arrayOf("*/*")) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Импорт из файла") }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Импорт полностью заменяет профили и назначения кнопок. " +
+                        "Файл можно править руками — формат описан комментариями внутри.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
         Text("Обслуживание", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         ElevatedCard(Modifier.fillMaxWidth()) {
@@ -172,6 +245,10 @@ private fun SettingToggle(label: String, checked: Boolean, onChange: (Boolean) -
         Text(label, Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange)
     }
+}
+
+private fun toast(context: android.content.Context, text: String) {
+    Toast.makeText(context, text, Toast.LENGTH_LONG).show()
 }
 
 private fun openShizuku(context: android.content.Context) {

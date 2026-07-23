@@ -48,6 +48,7 @@ object SurfaceSync {
                     Intent(app, ActionActivity::class.java)
                         .setAction(ActionActivity.ACTION_RUN)
                         .putExtra(ActionActivity.EXTRA_PROFILE_ID, profile.id)
+                        .putExtra(ActionActivity.EXTRA_PROFILE_NAME, profile.name)
                 )
                 .build()
         }

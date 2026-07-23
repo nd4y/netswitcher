@@ -1,9 +1,6 @@
 package icu.nd4y.netswitcher.action
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import icu.nd4y.netswitcher.NetSwitcherApp
 import icu.nd4y.netswitcher.data.ActionResult
 import icu.nd4y.netswitcher.data.ConfigRepository
@@ -24,23 +21,56 @@ object ActionDispatcher {
     /** Id of the profile currently being applied, or null. */
     val running: StateFlow<String?> = _running
 
-    /** Fire-and-forget: safe to call from a tile, a widget or a trampoline activity. */
-    fun dispatch(context: Context, profileId: String) {
-        val app = context.applicationContext
-        NetSwitcherApp.appScope.launch { runNow(app, profileId) }
+    /**
+     * Mirrors the persisted "show toasts" setting so a press arriving on a cold
+     * process can be acknowledged without first awaiting a DataStore read.
+     */
+    @Volatile
+    var toastsEnabled: Boolean = true
+        private set
+
+    fun rememberToastPreference(enabled: Boolean) {
+        toastsEnabled = enabled
     }
 
-    suspend fun runNow(context: Context, profileId: String): ActionResult {
+    /**
+     * Fire-and-forget: safe to call from a tile, a widget or a trampoline activity.
+     * Pass [label] when the caller already knows the profile name — the press is then
+     * acknowledged before any suspending work happens.
+     */
+    fun dispatch(context: Context, profileId: String, label: String? = null) {
+        val app = context.applicationContext
+        val announced = label != null
+        if (label != null) Feedback.announceStart(app, label, toastsEnabled)
+        NetSwitcherApp.appScope.launch { runNow(app, profileId, announced) }
+    }
+
+    suspend fun runNow(
+        context: Context,
+        profileId: String,
+        alreadyAnnounced: Boolean = false,
+    ): ActionResult {
         val app = context.applicationContext
         val config = ConfigRepository.get(app).current()
         val profile = config.profile(profileId)
-            ?: return ActionResult(false, "Профиль не найден").also { publish(app, it) }
-        return runNow(app, profile)
+            ?: return ActionResult(false, "Профиль не найден").also {
+                _lastResult.value = it
+                Feedback.announceResult(app, it, toastsEnabled)
+            }
+        return runNow(app, profile, alreadyAnnounced)
     }
 
-    suspend fun runNow(context: Context, profile: Profile): ActionResult {
+    suspend fun runNow(
+        context: Context,
+        profile: Profile,
+        alreadyAnnounced: Boolean = false,
+    ): ActionResult {
         val app = context.applicationContext
         val config = ConfigRepository.get(app).current()
+        rememberToastPreference(config.showToasts)
+
+        if (!alreadyAnnounced) Feedback.announceStart(app, profile.name, config.showToasts)
+
         _running.value = profile.id
         val result = try {
             SwitchEngine(app).run(profile, config.backend)
@@ -49,15 +79,9 @@ object ActionDispatcher {
         } finally {
             _running.value = null
         }
-        publish(app, result, config.showToasts)
-        return result
-    }
 
-    private fun publish(context: Context, result: ActionResult, toast: Boolean = true) {
         _lastResult.value = result
-        if (!toast) return
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context.applicationContext, result.message, Toast.LENGTH_SHORT).show()
-        }
+        Feedback.announceResult(app, result, config.showToasts)
+        return result
     }
 }

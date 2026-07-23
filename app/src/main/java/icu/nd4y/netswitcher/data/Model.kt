@@ -16,6 +16,26 @@ enum class ProfileKind {
 
     /** Just turn Wi-Fi off. */
     WIFI_OFF,
+
+    /** Just turn the Wi-Fi radio on and let auto-join pick a network. */
+    WIFI_ON,
+
+    /** On/off switch for the Wi-Fi radio. */
+    WIFI_TOGGLE,
+
+    /** On/off switch for mobile data, optionally pinned to a SIM. */
+    CELLULAR_TOGGLE,
+
+    /** On/off switch for the wired interface. */
+    ETHERNET_TOGGLE,
+
+    /** On/off switch for airplane mode. */
+    AIRPLANE_TOGGLE;
+
+    /** Toggles report state and flip it, so they get their own compact row. */
+    val isToggle: Boolean
+        get() = this == WIFI_TOGGLE || this == CELLULAR_TOGGLE ||
+            this == ETHERNET_TOGGLE || this == AIRPLANE_TOGGLE
 }
 
 /** Security token accepted by `cmd wifi connect-network`. */
@@ -51,6 +71,8 @@ data class Profile(
     val mobileData: MobileDataAction = MobileDataAction.KEEP,
     /** For CELLULAR / ETHERNET / WIFI_OFF: turn the Wi-Fi radio off. */
     val disableWifi: Boolean = true,
+    /** WIFI: pressing the button while already on this network disconnects instead. */
+    val tapAgainDisconnects: Boolean = true,
 ) {
     val iconRes: Int
         get() = when (kind) {
@@ -58,6 +80,11 @@ data class Profile(
             ProfileKind.CELLULAR -> R.drawable.ic_cellular
             ProfileKind.ETHERNET -> R.drawable.ic_ethernet
             ProfileKind.WIFI_OFF -> R.drawable.ic_wifi_off
+            ProfileKind.WIFI_ON -> R.drawable.ic_wifi
+            ProfileKind.WIFI_TOGGLE -> R.drawable.ic_wifi
+            ProfileKind.CELLULAR_TOGGLE -> R.drawable.ic_cellular
+            ProfileKind.ETHERNET_TOGGLE -> R.drawable.ic_ethernet
+            ProfileKind.AIRPLANE_TOGGLE -> R.drawable.ic_airplane
         }
 
     val subtitle: String
@@ -66,12 +93,21 @@ data class Profile(
             ProfileKind.CELLULAR -> if (subscriptionId >= 0) "SIM #$subscriptionId" else "текущая SIM"
             ProfileKind.ETHERNET -> ethernetInterface
             ProfileKind.WIFI_OFF -> "Wi-Fi выкл."
+            ProfileKind.WIFI_ON -> "Wi-Fi вкл."
+            ProfileKind.WIFI_TOGGLE -> "переключатель"
+            ProfileKind.CELLULAR_TOGGLE ->
+                if (subscriptionId >= 0) "переключатель · SIM #$subscriptionId" else "переключатель"
+
+            ProfileKind.ETHERNET_TOGGLE -> "переключатель · $ethernetInterface"
+            ProfileKind.AIRPLANE_TOGGLE -> "переключатель"
         }
 }
 
 @Serializable
 data class Config(
     val profiles: List<Profile> = emptyList(),
+    /** Ordered profile ids shown on the main screen; empty means "all of them". */
+    val homeIds: List<String> = emptyList(),
     /** Ordered profile ids exposed as launcher long-press shortcuts. */
     val shortcutIds: List<String> = emptyList(),
     /** Ordered profile ids drawn on the home screen widget. */
@@ -87,6 +123,8 @@ data class Config(
 
     fun resolve(ids: List<String>): List<Profile> = ids.mapNotNull { id -> profile(id) }
 
+    fun homeProfiles(): List<Profile> = resolve(homeIds)
+
     companion object {
         const val TILE_COUNT = 8
 
@@ -94,18 +132,30 @@ data class Config(
             val wifi = { id: String, name: String, ssid: String ->
                 Profile(id = id, name = name, kind = ProfileKind.WIFI, ssid = ssid)
             }
+            // Placeholder SSIDs — the point is to show the shape of a profile, the
+            // user replaces them (or imports a YAML config) with their own networks.
             val profiles = listOf(
-                wifi("home", "Home", "ND4Y-Home"),
-                wifi("home5", "Home 5G", "ND4Y-Home-5G"),
-                wifi("guest", "Guest", "ND4Y-Guest"),
-                wifi("guest5", "Guest 5G", "ND4Y-Guest-5G"),
-                wifi("iot", "Home IoT", "ND4Y-Home-IoT"),
+                Profile(id = "wifi_sw", name = "Wi-Fi", kind = ProfileKind.WIFI_TOGGLE),
+                Profile(id = "lte_sw", name = "LTE", kind = ProfileKind.CELLULAR_TOGGLE),
+                Profile(id = "eth_sw", name = "Ethernet", kind = ProfileKind.ETHERNET_TOGGLE),
+                Profile(id = "air_sw", name = "Авиарежим", kind = ProfileKind.AIRPLANE_TOGGLE),
+                wifi("home", "Home", "Home"),
+                wifi("home5", "Home 5G", "Home-5G"),
+                wifi("guest", "Guest", "Guest"),
+                wifi("guest5", "Guest 5G", "Guest-5G"),
+                wifi("iot", "IoT", "IoT"),
                 Profile(
                     id = "lte",
                     name = "LTE",
                     kind = ProfileKind.CELLULAR,
                     mobileData = MobileDataAction.ENABLE,
                     disableWifi = true,
+                ),
+                Profile(
+                    id = "wifion",
+                    name = "Wi-Fi on",
+                    kind = ProfileKind.WIFI_ON,
+                    mobileData = MobileDataAction.KEEP,
                 ),
                 Profile(
                     id = "wifioff",
@@ -124,9 +174,21 @@ data class Config(
             )
             return Config(
                 profiles = profiles,
-                shortcutIds = listOf("home", "home5", "lte", "wifioff"),
-                widgetIds = listOf("home", "home5", "guest", "iot", "lte", "wifioff"),
-                tileBindings = mapOf("1" to "home", "2" to "home5", "3" to "lte", "4" to "wifioff"),
+                // Toggles first: they render as the compact top row of the main screen.
+                homeIds = profiles.map { it.id },
+                shortcutIds = listOf("wifi_sw", "lte_sw", "home", "air_sw"),
+                widgetIds = listOf(
+                    "wifi_sw", "lte_sw", "eth_sw", "air_sw",
+                    "home", "home5", "guest", "iot",
+                ),
+                tileBindings = mapOf(
+                    "1" to "wifi_sw",
+                    "2" to "lte_sw",
+                    "3" to "eth_sw",
+                    "4" to "air_sw",
+                    "5" to "home",
+                    "6" to "home5",
+                ),
             )
         }
     }

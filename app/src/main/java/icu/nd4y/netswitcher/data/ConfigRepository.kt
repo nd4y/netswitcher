@@ -43,7 +43,14 @@ class ConfigRepository private constructor(context: Context) {
 
     private fun decode(raw: String?): Config {
         if (raw == null) return Config.default()
-        return decodeOrNull(raw) ?: Config.default()
+        val config = decodeOrNull(raw) ?: return Config.default()
+        // Configs written before the main screen became configurable have no homeIds;
+        // seed them with every profile so nothing disappears after an update.
+        return if (config.homeIds.isEmpty() && config.profiles.isNotEmpty()) {
+            config.copy(homeIds = config.profiles.map { it.id })
+        } else {
+            config
+        }
     }
 
     companion object {

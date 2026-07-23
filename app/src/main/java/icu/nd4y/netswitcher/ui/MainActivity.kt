@@ -94,15 +94,20 @@ private fun AppRoot() {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<Profile?>(null) }
 
-    val phonePermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+    val permissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
     ) { }
 
     LaunchedEffect(Unit) {
-        val granted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.READ_PHONE_STATE
-        ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) phonePermission.launch(Manifest.permission.READ_PHONE_STATE)
+        // READ_PHONE_STATE lists the SIMs; POST_NOTIFICATIONS carries the progress
+        // notification that acknowledges presses from outside the app.
+        val wanted = listOf(
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ).filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (wanted.isNotEmpty()) permissions.launch(wanted.toTypedArray())
     }
 
     Scaffold(
