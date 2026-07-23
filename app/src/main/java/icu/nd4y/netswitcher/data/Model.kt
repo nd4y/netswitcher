@@ -115,7 +115,8 @@ data class Config(
     /** Quick Settings tile slot (1..8, as string) -> profile id. */
     val tileBindings: Map<String, String> = emptyMap(),
     val backend: Backend = Backend.AUTO,
-    val showToasts: Boolean = true,
+    /** Duplicate the status bar chip with a toast; only needed below Android 16. */
+    val showToasts: Boolean = false,
     val widgetColumns: Int = 2,
     val verboseLog: Boolean = false,
 ) {

@@ -121,7 +121,7 @@ object YamlConfig {
             widgetIds = root.ids("widget", known),
             tileBindings = tiles,
             backend = root.enum("backend", Backend.entries, Backend.AUTO),
-            showToasts = root.bool("showToasts") ?: true,
+            showToasts = root.bool("showToasts") ?: false,
             verboseLog = root.bool("verboseLog") ?: false,
             widgetColumns = (root.int("widgetColumns") ?: 2).coerceIn(1, 4),
         )

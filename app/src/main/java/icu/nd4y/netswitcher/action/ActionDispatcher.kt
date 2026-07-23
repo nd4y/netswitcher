@@ -26,7 +26,7 @@ object ActionDispatcher {
      * process can be acknowledged without first awaiting a DataStore read.
      */
     @Volatile
-    var toastsEnabled: Boolean = true
+    var toastsEnabled: Boolean = false
         private set
 
     fun rememberToastPreference(enabled: Boolean) {

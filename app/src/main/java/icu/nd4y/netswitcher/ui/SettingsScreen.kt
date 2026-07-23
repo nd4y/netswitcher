@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import icu.nd4y.netswitcher.action.Feedback
 import icu.nd4y.netswitcher.action.SurfaceSync
 import icu.nd4y.netswitcher.data.Backend
 import icu.nd4y.netswitcher.data.Config
@@ -173,10 +174,22 @@ fun SettingsScreen(
         ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
                 SettingToggle(
-                    label = "Всплывающие уведомления о результате",
+                    label = "Дублировать всплывающим сообщением",
                     checked = config.showToasts,
                     onChange = { value -> controller.edit { it.copy(showToasts = value) } },
                 )
+                Text(
+                    text = if (Feedback.liveUpdatesSupported) {
+                        "Ход переключения и так показывается чипом в статус-баре " +
+                            "(Live Update, Android 16+). Toast нужен, только если " +
+                            "хочется дублирования."
+                    } else {
+                        "На этой версии Android чипа в статус-баре нет — " +
+                            "всплывающее сообщение показывается всегда."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(4.dp))
                 SettingToggle(
                     label = "Показывать журнал команд",
                     checked = config.verboseLog,

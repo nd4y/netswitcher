@@ -7,12 +7,13 @@ plugins {
 
 android {
     namespace = "icu.nd4y.netswitcher"
-    compileSdk = 35
+    // 36 (Android 16) is what Live Update notifications need.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "icu.nd4y.netswitcher"
         minSdk = 31
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
@@ -55,7 +56,8 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
+    // 1.17 is the first release with NotificationCompat.ProgressStyle (Live Updates).
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
