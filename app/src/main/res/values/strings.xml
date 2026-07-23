@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NetSwitcher</string>
+    <string name="widget_label">NetSwitcher</string>
+    <string name="widget_description">Кнопки переключения сетей</string>
+
+    <string name="tile_1">NetSwitcher 1</string>
+    <string name="tile_2">NetSwitcher 2</string>
+    <string name="tile_3">NetSwitcher 3</string>
+    <string name="tile_4">NetSwitcher 4</string>
+    <string name="tile_5">NetSwitcher 5</string>
+    <string name="tile_6">NetSwitcher 6</string>
+    <string name="tile_7">NetSwitcher 7</string>
+    <string name="tile_8">NetSwitcher 8</string>
+</resources>
