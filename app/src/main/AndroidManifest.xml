@@ -17,6 +17,10 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
+    <!-- Optional: lets the panel tile show its panel as an overlay above the still-open
+         shade (like the system "Internet" tile) instead of collapsing it. Requested by
+         the user via Settings, never assumed — everything works without it. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Shizuku -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 

@@ -58,6 +58,10 @@ fun SettingsScreen(
     val binderAlive = shizukuState.first
     val granted = shizukuState.second
 
+    // Re-checked on every recomposition triggered by tick, which also fires on onResume —
+    // so coming back from the system permission screen refreshes this without extra wiring.
+    val overlayGranted = remember(tick) { Settings.canDrawOverlays(context) }
+
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/yaml")
     ) { uri ->
@@ -167,6 +171,34 @@ fun SettingsScreen(
                         "Wi-Fi-сети — останется только открытие системной панели.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text("Панель без сворачивания шторки", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp)) {
+                Text(
+                    text = if (overlayGranted) {
+                        "Разрешение выдано — плитка-панель открывается поверх шторки, " +
+                            "как системная «Интернет», шторка не сворачивается."
+                    } else {
+                        "По умолчанию плитка-панель сворачивает шторку перед показом — " +
+                            "так работает любая сторонняя плитка. Чтобы панель, как у " +
+                            "системной «Интернет», появлялась прямо поверх открытой " +
+                            "шторки, выдайте разрешение «Отображение поверх других окон»."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (overlayGranted) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { openOverlaySettings(context) },
+                    enabled = !overlayGranted,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(if (overlayGranted) "Разрешение выдано" else "Выдать разрешение") }
             }
         }
 
@@ -318,6 +350,15 @@ private fun openAppSettings(context: android.content.Context) {
         context.startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 .setData(Uri.fromParts("package", context.packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+}
+
+private fun openOverlaySettings(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }

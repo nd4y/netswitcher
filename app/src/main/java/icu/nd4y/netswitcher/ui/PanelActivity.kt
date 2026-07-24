@@ -88,8 +88,14 @@ class PanelActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Shared by both hosts: [PanelActivity] (fallback, when the overlay permission isn't
+ * granted) and [PanelOverlayController]'s window (the no-shade-collapse path). [onFinish]
+ * is called only once the exit animation has actually finished playing — never call it
+ * directly from a dismiss gesture, always go through the state flip so the animation runs.
+ */
 @Composable
-private fun PanelRoot(onFinish: () -> Unit) {
+internal fun PanelRoot(onFinish: () -> Unit) {
     val context = LocalContext.current
     val repo = remember { ConfigRepository.get(context) }
     val config by repo.flow.collectAsStateWithLifecycle(initialValue = Config.default())
