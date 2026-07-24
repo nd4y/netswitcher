@@ -181,8 +181,12 @@ class RunProfileAction : ActionCallback {
         if (label != null) {
             Feedback.announceStart(context, label, ActionDispatcher.startNotification)
         }
+        // No explicit updateAll() here: NetSwitcherApp's ActionDispatcher.running
+        // collector already refreshes the widget on both the busy->true and busy->false
+        // transitions. A second, unsynchronized updateAll() call from this separate
+        // coroutine used to race it — an out-of-order render could leave a button stuck
+        // on "переключаю…" after the switch had actually finished.
         ActionDispatcher.runNow(context, profileId, alreadyAnnounced = label != null)
-        NetSwitcherWidget().updateAll(context)
     }
 
     companion object {
