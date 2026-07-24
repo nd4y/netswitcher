@@ -23,11 +23,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.Profile
 import icu.nd4y.netswitcher.data.ProfileKind
@@ -41,6 +46,7 @@ fun ProfilesScreen(
     onEdit: (Profile) -> Unit,
 ) {
     val haptics = rememberClickHaptics()
+    var sharing by remember { mutableStateOf<Profile?>(null) }
 
     Column(
         modifier = modifier
@@ -118,6 +124,18 @@ fun ProfilesScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    if (profile.kind == ProfileKind.WIFI && profile.ssid.isNotBlank()) {
+                        IconButton(onClick = {
+                            haptics()
+                            sharing = profile
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_share),
+                                contentDescription = "Поделиться",
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
                     IconButton(onClick = {
                         haptics()
                         onEdit(profile)
@@ -150,5 +168,9 @@ fun ProfilesScreen(
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+
+    sharing?.let { profile ->
+        ShareNetworkDialog(profile = profile, onDismiss = { sharing = null })
     }
 }

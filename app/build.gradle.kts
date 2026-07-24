@@ -14,8 +14,8 @@ android {
         applicationId = "icu.nd4y.netswitcher"
         minSdk = 31
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     // Release signing comes from the environment so the key never lives in the repo.
@@ -94,6 +94,9 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.yaml:snakeyaml:2.2")
+
+    // Wi-Fi QR code generation (pure-Java, no Android integration layer needed).
+    implementation("com.google.zxing:core:3.5.3")
 
     // Home screen widget
     implementation("androidx.glance:glance-appwidget:1.1.1")
