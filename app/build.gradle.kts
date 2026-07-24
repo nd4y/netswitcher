@@ -73,6 +73,13 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric-based UI tests need the app's resources and manifest.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -107,6 +114,17 @@ dependencies {
     implementation("dev.rikka.shizuku:provider:13.1.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // Hosts the empty activity Compose UI tests attach to; lands in the debug
+    // manifest, which is the variant unit tests run against.
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
+    // UI autotests on the JVM: Robolectric drives real Compose screens without a
+    // device; the Glance testing artifact composes the widget at arbitrary sizes.
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core-ktx:1.6.1")
+    testImplementation("androidx.test.ext:junit-ktx:1.2.1")
+    testImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.glance:glance-appwidget-testing:1.1.1")
 }

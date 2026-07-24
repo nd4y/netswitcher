@@ -195,7 +195,9 @@ data class Config(
                 wifi("iot", "IoT", "IoT"),
                 Profile(
                     id = "lte",
-                    name = "LTE",
+                    // "only"-suffixed so the one-shot is distinguishable from the LTE
+                    // toggle — they used to share the exact same name.
+                    name = "LTE only",
                     kind = ProfileKind.CELLULAR,
                     mobileData = MobileDataAction.ENABLE,
                     disableWifi = true,
@@ -215,7 +217,7 @@ data class Config(
                 ),
                 Profile(
                     id = "eth",
-                    name = "Ethernet",
+                    name = "Ethernet only",
                     kind = ProfileKind.ETHERNET,
                     mobileData = MobileDataAction.DISABLE,
                     disableWifi = true,

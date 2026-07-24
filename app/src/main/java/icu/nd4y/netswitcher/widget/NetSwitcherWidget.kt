@@ -63,7 +63,7 @@ class NetSwitcherWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun WidgetBody(
+internal fun WidgetBody(
     config: Config,
     buttons: List<Profile>,
     active: Map<String, Boolean>,
