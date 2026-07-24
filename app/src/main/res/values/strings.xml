@@ -15,4 +15,7 @@
 
     <string name="tile_panel">NetSwitcher: панель</string>
     <string name="panel_title">Быстрое переключение</string>
+
+    <string name="hce_description">Wi-Fi через NFC</string>
+    <string name="hce_aid_group">NDEF-метка Wi-Fi</string>
 </resources>

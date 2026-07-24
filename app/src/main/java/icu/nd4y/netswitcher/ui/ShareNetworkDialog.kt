@@ -1,6 +1,7 @@
 package icu.nd4y.netswitcher.ui
 
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.Image
@@ -39,10 +40,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import icu.nd4y.netswitcher.data.Profile
 import icu.nd4y.netswitcher.share.NfcWriter
 import icu.nd4y.netswitcher.share.ShareSheet
 import icu.nd4y.netswitcher.share.WifiCredentials
+import icu.nd4y.netswitcher.share.WifiHceService
+import icu.nd4y.netswitcher.share.WifiNdef
 import icu.nd4y.netswitcher.share.WifiQrCode
 
 /**
@@ -63,6 +67,24 @@ fun ShareNetworkDialog(profile: Profile, onDismiss: () -> Unit) {
     var nfcActive by remember { mutableStateOf(false) }
     var nfcStatus by remember { mutableStateOf<NfcWriter.Status?>(null) }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
+
+    val hceAvailable = nfcAvailable &&
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)
+    var tagMode by remember { mutableStateOf(false) }
+    val hceReads by WifiHceService.reads.collectAsStateWithLifecycle()
+    var readBaseline by remember { mutableStateOf(0) }
+
+    // While tag mode is on (and the dialog is open) the phone emulates a Wi-Fi tag.
+    DisposableEffect(tagMode) {
+        if (tagMode) {
+            readBaseline = WifiHceService.reads.value
+            WifiHceService.arm(WifiNdef.messageBytes(profile))
+            onDispose { WifiHceService.disarm() }
+        } else {
+            WifiHceService.disarm()
+            onDispose { }
+        }
+    }
 
     DisposableEffect(nfcActive) {
         if (nfcActive && activity != null) {
@@ -146,6 +168,7 @@ fun ShareNetworkDialog(profile: Profile, onDismiss: () -> Unit) {
                         onClick = {
                             haptics()
                             nfcStatus = null
+                            tagMode = false
                             nfcActive = !nfcActive
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -176,6 +199,40 @@ fun ShareNetworkDialog(profile: Profile, onDismiss: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                // --- Tag emulation (HCE) ---
+                if (hceAvailable) {
+                    FilledTonalButton(
+                        onClick = {
+                            haptics()
+                            nfcActive = false
+                            tagMode = !tagMode
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (tagMode) "Выключить режим метки" else "Режим метки (эмуляция NFC)")
+                    }
+                    if (tagMode) {
+                        val wasRead = hceReads > readBaseline
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = if (wasRead) {
+                                "Второй телефон считал сеть ✓ — режим можно выключить."
+                            } else {
+                                "Телефон изображает NFC-метку. Поднесите второй телефон " +
+                                    "вплотную задними панелями. Экран этого телефона должен " +
+                                    "быть включён и разблокирован, NFC на обоих — включён."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (wasRead) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
 

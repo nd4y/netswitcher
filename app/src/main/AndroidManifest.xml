@@ -13,9 +13,10 @@
     <!-- Android 16+: lets the "switching…" notification become a status bar chip. -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Writing Wi-Fi credentials to an NFC tag when sharing a network. -->
+    <!-- Writing Wi-Fi credentials to an NFC tag, and emulating one via HCE. -->
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
     <!-- Shizuku -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
@@ -183,6 +184,19 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
             <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="false" />
+        </service>
+
+        <!-- Emulates a Wi-Fi NFC tag (phone-to-phone sharing) via Host Card Emulation. -->
+        <service
+            android:name=".share.WifiHceService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/apduservice" />
         </service>
 
         <!-- Shares the QR image out through the system share sheet. -->
