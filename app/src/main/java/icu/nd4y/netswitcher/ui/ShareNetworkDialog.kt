@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -238,16 +239,18 @@ fun ShareNetworkDialog(profile: Profile, onDismiss: () -> Unit) {
 
                 // --- Share sheet ---
                 Row(Modifier.fillMaxWidth()) {
+                    // The labels wrap to two lines on narrow screens; without an explicit
+                    // textAlign the wrapped lines are start-aligned and look off-center.
                     OutlinedButton(
                         onClick = { haptics(); ShareSheet.shareText(context, profile) },
                         modifier = Modifier.weight(1f),
-                    ) { Text("Отправить текст") }
+                    ) { Text("Отправить текст", textAlign = TextAlign.Center) }
                     if (qr != null) {
                         Spacer(Modifier.width(8.dp))
                         OutlinedButton(
                             onClick = { haptics(); ShareSheet.shareQrImage(context, profile, qr) },
                             modifier = Modifier.weight(1f),
-                        ) { Text("Отправить QR") }
+                        ) { Text("Отправить QR", textAlign = TextAlign.Center) }
                     }
                 }
 
