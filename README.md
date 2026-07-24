@@ -7,14 +7,22 @@
 
 ## Установка
 
+[![Последний релиз](https://img.shields.io/github/v/release/nd4y/netswitcher?label=релиз&sort=semver)](https://github.com/nd4y/netswitcher/releases/latest)
+
 [<img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Установить через Obtainium" height="54">](obtainium://add/https://github.com/nd4y/netswitcher)
 
 Кнопка открывает [Obtainium](https://github.com/ImranR98/Obtainium) и добавляет
-приложение с отслеживанием GitHub-релизов. Если ссылка не сработала, в Obtainium
-можно добавить приложение вручную, вставив адрес репозитория:
-`https://github.com/nd4y/netswitcher`.
+приложение с отслеживанием GitHub-релизов — ссылка не привязана к номеру версии и
+всегда ставит последний релиз (сейчас **v1.3**), а дальше подхватывает обновления сама.
+Если ссылка не сработала, в Obtainium можно добавить приложение вручную, вставив адрес
+репозитория: `https://github.com/nd4y/netswitcher`.
 
 Либо просто скачать APK со [страницы релизов](https://github.com/nd4y/netswitcher/releases).
+
+**Что нового в v1.3:** режим метки — телефон эмулирует Wi-Fi NFC-метку (HCE) для передачи
+сети на другой телефон. Из прошлых версий: плитка-панель в шторке (v1.1) и «поделиться
+сетью» через QR / запись на NFC-метку / системное меню (v1.2). Подробности — в разделах
+[«Поделиться сетью»](#поделиться-сетью) и [«Панель в шторке»](#панель-в-шторке).
 
 Релизы подписаны постоянным ключом — без этого Obtainium не смог бы ставить
 обновления поверх установленной версии. Как настроить подпись в своём форке —
