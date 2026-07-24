@@ -127,6 +127,16 @@ object NetworkStatus {
         }
     }.getOrDefault(false)
 
+    /**
+     * Synchronous SSID via WifiInfo for surfaces that can't suspend (tiles). Needs the
+     * fine-location permission; null when it is missing or nothing is connected.
+     */
+    fun currentSsidSync(context: Context): String? = runCatching {
+        @Suppress("DEPRECATION")
+        context.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid
+            ?.trim('"')?.takeIf { it.isNotBlank() && it != "<unknown ssid>" }
+    }.getOrNull()
+
     suspend fun currentSsid(context: Context, shell: PrivilegedShell?): String? {
         if (shell != null) {
             val status = shell.exec("cmd wifi status")

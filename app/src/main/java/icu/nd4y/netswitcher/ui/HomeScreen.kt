@@ -130,7 +130,7 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Сети Wi-Fi", style = MaterialTheme.typography.titleMedium)
+                Text("Сети", style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = "Удержание — перетащить, карандаш — изменить",
                     style = MaterialTheme.typography.bodySmall,

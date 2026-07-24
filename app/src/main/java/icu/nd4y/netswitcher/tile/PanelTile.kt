@@ -61,32 +61,23 @@ class PanelTile : TileService() {
     private suspend fun refresh() {
         val tile = qsTile ?: return
         val config = ConfigRepository.get(applicationContext).current()
-        val active = config.profiles.firstOrNull {
-            it.kind == ProfileKind.WIFI && NetworkStatus.quickActive(applicationContext, it)
-        }
 
-        when {
-            active != null -> {
-                tile.label = active.name
-                tile.subtitle = active.ssid.takeIf { it != active.name } ?: "Подключено"
-                tile.icon = Icon.createWithResource(this, active.iconRes)
-                tile.state = Tile.STATE_ACTIVE
-            }
+        // Mirror the system "Internet" tile's shape: the title stays constant and the
+        // current network lives in the subtitle — the title flipping to a profile name
+        // read as a different tile every time the shade opened.
+        tile.label = getString(R.string.app_name)
+        tile.icon = Icon.createWithResource(this, R.drawable.ic_tile)
 
-            NetworkStatus.isWifiOn(applicationContext) -> {
-                // Wi-Fi is on but not joined to any network we know about.
-                tile.label = getString(R.string.tile_panel)
-                tile.subtitle = "Сеть не распознана"
-                tile.icon = Icon.createWithResource(this, R.drawable.ic_tile)
-                tile.state = Tile.STATE_ACTIVE
+        if (NetworkStatus.isWifiOn(applicationContext)) {
+            val ssid = NetworkStatus.currentSsidSync(applicationContext)
+            val profile = config.profiles.firstOrNull {
+                it.kind == ProfileKind.WIFI && it.ssid == ssid
             }
-
-            else -> {
-                tile.label = getString(R.string.tile_panel)
-                tile.subtitle = "Wi-Fi выключен"
-                tile.icon = Icon.createWithResource(this, R.drawable.ic_tile)
-                tile.state = Tile.STATE_INACTIVE
-            }
+            tile.subtitle = profile?.name ?: ssid ?: "Wi-Fi вкл."
+            tile.state = Tile.STATE_ACTIVE
+        } else {
+            tile.subtitle = "Wi-Fi выключен"
+            tile.state = Tile.STATE_INACTIVE
         }
         tile.updateTile()
     }

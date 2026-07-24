@@ -25,7 +25,6 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
@@ -95,19 +94,14 @@ private fun WidgetBody(
         }
 
         val columns = config.widgetColumns.coerceIn(1, 4)
-        // RemoteViews allows at most 10 children per container. Rows used to be
-        // interleaved with Spacer siblings, which halved that budget: past ~5 rows
-        // the composition failed and the widget silently kept its previous layout —
-        // "stretched it, but the extra rows never appeared". Spacing is padding now,
-        // and anything beyond MAX_ROWS rows is dropped instead of breaking the render.
-        val rows = buttons.chunked(columns).take(MAX_ROWS)
-
-        // When the widget is squeezed, full cells (icon + label) get clipped from the
-        // bottom row up; below this per-row height the cells drop the icon and keep
-        // the label, which is the part that tells the networks apart.
+        // Cells keep their full size at every widget size. Shrinking the widget hides
+        // the rows that no longer fit (instead of squeezing the ones that remain into
+        // unreadable strips), and stretching it brings them back — SizeMode.Exact
+        // recomposes this with the new LocalSize on every resize. MAX_ROWS guards the
+        // RemoteViews 10-children budget; row spacing is padding, not Spacer children.
         val size = LocalSize.current
-        val perRowDp = (size.height.value - 16f - 6f * (rows.size - 1)) / rows.size
-        val compact = perRowDp < 56f
+        val fitRows = ((size.height.value - 10f) / 68f).toInt().coerceAtLeast(1)
+        val rows = buttons.chunked(columns).take(minOf(fitRows, MAX_ROWS))
 
         rows.forEachIndexed { rowIndex, rowItems ->
             val rowModifier =
@@ -120,7 +114,6 @@ private fun WidgetBody(
                         profile = profile,
                         isActive = active[profile.id] == true,
                         isBusy = busyId == profile.id,
-                        compact = compact,
                         modifier = GlanceModifier.defaultWeight(),
                     )
                 }
@@ -142,7 +135,6 @@ private fun WidgetButton(
     profile: Profile,
     isActive: Boolean,
     isBusy: Boolean,
-    compact: Boolean,
     modifier: GlanceModifier,
 ) {
     val background = when {
@@ -155,13 +147,30 @@ private fun WidgetButton(
         isActive -> GlanceTheme.colors.onPrimaryContainer
         else -> GlanceTheme.colors.onSecondaryContainer
     }
-    val action = actionRunCallback<RunProfileAction>(
-        actionParametersOf(
-            RunProfileAction.profileIdKey to profile.id,
-            RunProfileAction.profileNameKey to profile.name,
+
+    Column(
+        modifier = modifier
+            .background(background)
+            .cornerRadius(16.dp)
+            .padding(horizontal = 6.dp, vertical = 10.dp)
+            .clickable(
+                actionRunCallback<RunProfileAction>(
+                    actionParametersOf(
+                        RunProfileAction.profileIdKey to profile.id,
+                        RunProfileAction.profileNameKey to profile.name,
+                    )
+                )
+            ),
+        horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
+        verticalAlignment = Alignment.Vertical.CenterVertically,
+    ) {
+        Image(
+            provider = ImageProvider(profile.iconRes),
+            contentDescription = profile.name,
+            colorFilter = ColorFilter.tint(foreground),
+            modifier = GlanceModifier.size(22.dp),
         )
-    )
-    val label: @Composable () -> Unit = {
+        Spacer(GlanceModifier.size(4.dp))
         Text(
             text = if (isBusy) "переключаю…" else profile.name,
             maxLines = 1,
@@ -172,38 +181,6 @@ private fun WidgetButton(
                 textAlign = TextAlign.Center,
             ),
         )
-    }
-
-    if (compact) {
-        Box(
-            modifier = modifier
-                .background(background)
-                .cornerRadius(12.dp)
-                .padding(horizontal = 4.dp, vertical = 6.dp)
-                .clickable(action),
-            contentAlignment = Alignment.Center,
-        ) {
-            label()
-        }
-    } else {
-        Column(
-            modifier = modifier
-                .background(background)
-                .cornerRadius(16.dp)
-                .padding(horizontal = 6.dp, vertical = 10.dp)
-                .clickable(action),
-            horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-            verticalAlignment = Alignment.Vertical.CenterVertically,
-        ) {
-            Image(
-                provider = ImageProvider(profile.iconRes),
-                contentDescription = profile.name,
-                colorFilter = ColorFilter.tint(foreground),
-                modifier = GlanceModifier.size(22.dp),
-            )
-            Spacer(GlanceModifier.size(4.dp))
-            label()
-        }
     }
 }
 
