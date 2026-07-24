@@ -51,6 +51,15 @@ enum class MobileDataAction { KEEP, ENABLE, DISABLE }
 /** Which privileged backend to use for the shell commands. */
 enum class Backend { AUTO, SHIZUKU, ROOT, NONE }
 
+/** How loudly the "switching…" notification announces itself. Never with sound. */
+enum class StartNotification {
+    /** Sits quietly in the shade (and in the status bar chip on Android 16+). */
+    SHADE,
+
+    /** Slides in as a heads-up banner over whatever is on screen. */
+    HEADS_UP,
+}
+
 @Serializable
 data class Profile(
     val id: String,
@@ -115,8 +124,7 @@ data class Config(
     /** Quick Settings tile slot (1..8, as string) -> profile id. */
     val tileBindings: Map<String, String> = emptyMap(),
     val backend: Backend = Backend.AUTO,
-    /** Duplicate the status bar chip with a toast; only needed below Android 16. */
-    val showToasts: Boolean = false,
+    val startNotification: StartNotification = StartNotification.SHADE,
     val widgetColumns: Int = 2,
     val verboseLog: Boolean = false,
 ) {
@@ -125,6 +133,37 @@ data class Config(
     fun resolve(ids: List<String>): List<Profile> = ids.mapNotNull { id -> profile(id) }
 
     fun homeProfiles(): List<Profile> = resolve(homeIds)
+
+    /**
+     * Applies a new order to [orderedIds], keeping every other profile where it is.
+     * The profile list is the canonical order, and the main screen mirrors it — so a
+     * drag in either place moves the card in both.
+     */
+    fun reordered(orderedIds: List<String>): Config {
+        val ids = profiles.map { it.id }.reorderSubset(orderedIds)
+        val byId = profiles.associateBy { it.id }
+        return copy(
+            profiles = ids.mapNotNull { byId[it] },
+            homeIds = homeIds.reorderSubset(orderedIds.filter { it in homeIds }),
+        )
+    }
+
+    /** Restores where buttons live without touching the profiles themselves. */
+    fun withDefaultLayout(): Config {
+        val toggles = profiles.filter { it.kind.isToggle }.map { it.id }
+        val networks = profiles.filter { it.kind == ProfileKind.WIFI }.map { it.id }
+        return copy(
+            homeIds = profiles.map { it.id },
+            shortcutIds = (toggles + networks).take(4),
+            widgetIds = (toggles + networks).take(8),
+            tileBindings = (toggles + networks + profiles.map { it.id })
+                .distinct()
+                .take(TILE_COUNT)
+                .mapIndexed { index, id -> (index + 1).toString() to id }
+                .toMap(),
+            widgetColumns = 2,
+        )
+    }
 
     companion object {
         const val TILE_COUNT = 8
@@ -193,6 +232,20 @@ data class Config(
             )
         }
     }
+}
+
+/**
+ * Rewrites the positions occupied by [orderedSubset]'s members with that new order,
+ * leaving everything else untouched. A no-op if the subset is not fully contained.
+ */
+fun List<String>.reorderSubset(orderedSubset: List<String>): List<String> {
+    if (orderedSubset.isEmpty()) return this
+    val members = orderedSubset.toSet()
+    val slots = indices.filter { this[it] in members }
+    if (slots.size != orderedSubset.size) return this
+    val result = toMutableList()
+    slots.forEachIndexed { position, slot -> result[slot] = orderedSubset[position] }
+    return result
 }
 
 /** Outcome of pressing a button, shown as a toast and in the in-app log. */

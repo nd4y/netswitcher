@@ -57,7 +57,7 @@ abstract class BaseSwitchTile(private val slot: Int) : TileService() {
                     Feedback.announceStart(
                         applicationContext,
                         profile.name,
-                        ActionDispatcher.toastsEnabled,
+                        ActionDispatcher.startNotification,
                     )
                     ActionDispatcher.runNow(applicationContext, profile, alreadyAnnounced = true)
                     refresh()

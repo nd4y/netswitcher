@@ -18,7 +18,39 @@ class YamlConfigTest {
         assertEquals(original.tileBindings, decoded.tileBindings)
         assertEquals(original.backend, decoded.backend)
         assertEquals(original.widgetColumns, decoded.widgetColumns)
-        assertEquals(original.showToasts, decoded.showToasts)
+        assertEquals(original.startNotification, decoded.startNotification)
+    }
+
+    @Test
+    fun `reordering the main screen reorders the profile list too`() {
+        val config = Config.default()
+        val networks = config.profiles.filter { it.kind == ProfileKind.WIFI }.map { it.id }
+        val swapped = listOf(networks[1], networks[0]) + networks.drop(2)
+
+        val moved = config.reordered(swapped)
+
+        // Both surfaces agree, and non-network profiles have not budged.
+        assertEquals(swapped, moved.profiles.filter { it.kind == ProfileKind.WIFI }.map { it.id })
+        assertEquals(swapped, moved.homeIds.filter { it in networks })
+        assertEquals(
+            config.profiles.filterNot { it.kind == ProfileKind.WIFI }.map { it.id },
+            moved.profiles.filterNot { it.kind == ProfileKind.WIFI }.map { it.id },
+        )
+        assertEquals(config.profiles.size, moved.profiles.size)
+    }
+
+    @Test
+    fun `layout reset leaves profiles alone`() {
+        val config = Config.default().let {
+            it.copy(homeIds = emptyList(), widgetIds = emptyList(), tileBindings = emptyMap())
+        }
+        val restored = config.withDefaultLayout()
+
+        assertEquals(config.profiles, restored.profiles)
+        assertEquals(config.profiles.map { it.id }, restored.homeIds)
+        assertTrue(restored.widgetIds.isNotEmpty())
+        assertTrue(restored.tileBindings.isNotEmpty())
+        assertTrue(restored.tileBindings.values.all { id -> config.profiles.any { it.id == id } })
     }
 
     @Test

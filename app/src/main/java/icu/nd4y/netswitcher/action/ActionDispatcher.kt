@@ -5,6 +5,7 @@ import icu.nd4y.netswitcher.NetSwitcherApp
 import icu.nd4y.netswitcher.data.ActionResult
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
+import icu.nd4y.netswitcher.data.StartNotification
 import icu.nd4y.netswitcher.engine.SwitchEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,15 +23,15 @@ object ActionDispatcher {
     val running: StateFlow<String?> = _running
 
     /**
-     * Mirrors the persisted "show toasts" setting so a press arriving on a cold
+     * Mirrors the persisted notification preference so a press arriving on a cold
      * process can be acknowledged without first awaiting a DataStore read.
      */
     @Volatile
-    var toastsEnabled: Boolean = false
+    var startNotification: StartNotification = StartNotification.SHADE
         private set
 
-    fun rememberToastPreference(enabled: Boolean) {
-        toastsEnabled = enabled
+    fun rememberNotificationPreference(style: StartNotification) {
+        startNotification = style
     }
 
     /**
@@ -41,7 +42,7 @@ object ActionDispatcher {
     fun dispatch(context: Context, profileId: String, label: String? = null) {
         val app = context.applicationContext
         val announced = label != null
-        if (label != null) Feedback.announceStart(app, label, toastsEnabled)
+        if (label != null) Feedback.announceStart(app, label, startNotification)
         NetSwitcherApp.appScope.launch { runNow(app, profileId, announced) }
     }
 
@@ -55,7 +56,7 @@ object ActionDispatcher {
         val profile = config.profile(profileId)
             ?: return ActionResult(false, "Профиль не найден").also {
                 _lastResult.value = it
-                Feedback.announceResult(app, it, toastsEnabled)
+                Feedback.announceResult(app, it)
             }
         return runNow(app, profile, alreadyAnnounced)
     }
@@ -67,9 +68,11 @@ object ActionDispatcher {
     ): ActionResult {
         val app = context.applicationContext
         val config = ConfigRepository.get(app).current()
-        rememberToastPreference(config.showToasts)
+        rememberNotificationPreference(config.startNotification)
 
-        if (!alreadyAnnounced) Feedback.announceStart(app, profile.name, config.showToasts)
+        if (!alreadyAnnounced) {
+            Feedback.announceStart(app, profile.name, config.startNotification)
+        }
 
         _running.value = profile.id
         val result = try {
@@ -81,7 +84,7 @@ object ActionDispatcher {
         }
 
         _lastResult.value = result
-        Feedback.announceResult(app, result, config.showToasts)
+        Feedback.announceResult(app, result)
         return result
     }
 }

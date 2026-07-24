@@ -16,7 +16,7 @@
 #   AIRPLANE_TOGGLE — переключатель авиарежима
 version: 1
 backend: AUTO          # AUTO | SHIZUKU | ROOT | NONE
-showToasts: true
+startNotification: SHADE   # SHADE | HEADS_UP
 verboseLog: false
 widgetColumns: 2
 

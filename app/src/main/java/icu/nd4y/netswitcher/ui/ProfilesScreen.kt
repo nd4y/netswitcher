@@ -8,14 +8,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,19 +40,29 @@ fun ProfilesScreen(
     modifier: Modifier = Modifier,
     onEdit: (Profile) -> Unit,
 ) {
-    Column(modifier.fillMaxWidth()) {
+    val haptics = rememberClickHaptics()
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Профили сетей",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
+            Column(Modifier.weight(1f)) {
+                Text("Профили сетей", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Порядок общий с вкладкой «Сети»",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Button(onClick = {
+                haptics()
                 onEdit(
                     Profile(
                         id = UUID.randomUUID().toString().take(8),
@@ -65,59 +77,78 @@ fun ProfilesScreen(
             }
         }
 
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(config.profiles, key = { it.id }) { profile ->
-                Card(
+        ReorderableColumn(
+            count = config.profiles.size,
+            spacing = 8.dp,
+            onMove = { from, to ->
+                val order = config.profiles.map { it.id }.moveItem(from, to)
+                controller.edit { it.reordered(order) }
+            },
+        ) { index, isDragging ->
+            val profile = config.profiles[index]
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.elevatedCardElevation(
+                    defaultElevation = if (isDragging) 8.dp else 1.dp
+                ),
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            painter = painterResource(profile.iconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
+                    Icon(
+                        painter = painterResource(profile.iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = profile.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                text = profile.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = profile.subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        IconButton(onClick = { onEdit(profile) }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Изменить")
-                        }
-                        IconButton(onClick = {
-                            controller.edit { current ->
-                                current.copy(
-                                    profiles = current.profiles.filterNot { it.id == profile.id },
-                                    shortcutIds = current.shortcutIds - profile.id,
-                                    widgetIds = current.widgetIds - profile.id,
-                                    tileBindings = current.tileBindings
-                                        .filterValues { it != profile.id },
-                                )
-                            }
-                        }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Удалить")
-                        }
+                        Text(
+                            text = profile.subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
+                    IconButton(onClick = {
+                        haptics()
+                        onEdit(profile)
+                    }) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Изменить")
+                    }
+                    IconButton(onClick = {
+                        haptics()
+                        controller.edit { current ->
+                            current.copy(
+                                profiles = current.profiles.filterNot { it.id == profile.id },
+                                homeIds = current.homeIds - profile.id,
+                                shortcutIds = current.shortcutIds - profile.id,
+                                widgetIds = current.widgetIds - profile.id,
+                                tileBindings = current.tileBindings
+                                    .filterValues { it != profile.id },
+                            )
+                        }
+                    }) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Удалить")
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.Menu,
+                        contentDescription = "Перетащить",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            item { Spacer(Modifier.height(24.dp)) }
         }
+
+        Spacer(Modifier.height(24.dp))
     }
 }

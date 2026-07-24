@@ -18,7 +18,7 @@ object YamlConfig {
         appendLine("# Импорт: Настройки → Импорт конфигурации (YAML)")
         appendLine("version: $FORMAT_VERSION")
         appendLine("backend: ${config.backend.name}          # AUTO | SHIZUKU | ROOT | NONE")
-        appendLine("showToasts: ${config.showToasts}")
+        appendLine("startNotification: ${config.startNotification.name}   # SHADE | HEADS_UP")
         appendLine("verboseLog: ${config.verboseLog}")
         appendLine("widgetColumns: ${config.widgetColumns}")
         appendLine()
@@ -121,7 +121,11 @@ object YamlConfig {
             widgetIds = root.ids("widget", known),
             tileBindings = tiles,
             backend = root.enum("backend", Backend.entries, Backend.AUTO),
-            showToasts = root.bool("showToasts") ?: false,
+            startNotification = root.enum(
+                "startNotification",
+                StartNotification.entries,
+                StartNotification.SHADE,
+            ),
             verboseLog = root.bool("verboseLog") ?: false,
             widgetColumns = (root.int("widgetColumns") ?: 2).coerceIn(1, 4),
         )

@@ -18,12 +18,32 @@ android {
         versionName = "1.0"
     }
 
+    // Release signing comes from the environment so the key never lives in the repo.
+    // Without it the release APK stays unsigned, which is fine for a local build but
+    // useless for distribution: Obtainium needs a stable signature to update in place.
+    val keystorePath = System.getenv("NETSWITCHER_KEYSTORE")
+    if (!keystorePath.isNullOrBlank() && file(keystorePath).exists()) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("NETSWITCHER_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("NETSWITCHER_KEY_ALIAS") ?: "netswitcher"
+                keyPassword = System.getenv("NETSWITCHER_KEY_PASSWORD")
+                // v3 supersedes v2 and leaves the door open to rotating the key
+                // later. It landed in Android 9, far below this app's minSdk 31.
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
+            signingConfig = signingConfigs.findByName("release")
             // Reflection into hidden framework APIs + Shizuku makes shrinking risky
             // for very little gain on an app this small.
             isMinifyEnabled = false

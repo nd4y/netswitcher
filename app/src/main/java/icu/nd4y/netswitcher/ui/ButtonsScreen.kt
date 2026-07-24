@@ -175,6 +175,7 @@ private fun OrderedPicker(
     selected: List<String>,
     onChange: (List<String>) -> Unit,
 ) {
+    val haptics = rememberClickHaptics()
     Column(Modifier.fillMaxWidth()) {
         selected.mapNotNull { id -> all.firstOrNull { it.id == id } }
             .forEachIndexed { index, profile ->
@@ -184,7 +185,10 @@ private fun OrderedPicker(
                 ) {
                     Checkbox(
                         checked = true,
-                        onCheckedChange = { onChange(selected - profile.id) },
+                        onCheckedChange = {
+                            haptics()
+                            onChange(selected - profile.id)
+                        },
                     )
                     Text(
                         text = profile.name,
@@ -213,7 +217,10 @@ private fun OrderedPicker(
                 ) {
                     Checkbox(
                         checked = false,
-                        onCheckedChange = { onChange(selected + profile.id) },
+                        onCheckedChange = {
+                            haptics()
+                            onChange(selected + profile.id)
+                        },
                     )
                     Text(
                         text = profile.name,

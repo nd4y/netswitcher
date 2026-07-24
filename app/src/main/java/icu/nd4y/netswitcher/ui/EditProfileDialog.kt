@@ -307,20 +307,22 @@ private fun <T> SelectorRow(
     selected: T,
     onSelect: (T) -> Unit,
 ) {
+    val haptics = rememberClickHaptics()
     Column(Modifier.fillMaxWidth()) {
         options.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth()) {
                 row.forEachIndexed { index, (value, label) ->
                     if (index > 0) Spacer(Modifier.width(8.dp))
+                    val pick = {
+                        haptics()
+                        onSelect(value)
+                    }
                     if (value == selected) {
-                        Button(onClick = { onSelect(value) }, modifier = Modifier.weight(1f)) {
+                        Button(onClick = pick, modifier = Modifier.weight(1f)) {
                             Text(label, maxLines = 1)
                         }
                     } else {
-                        OutlinedButton(
-                            onClick = { onSelect(value) },
-                            modifier = Modifier.weight(1f),
-                        ) {
+                        OutlinedButton(onClick = pick, modifier = Modifier.weight(1f)) {
                             Text(label, maxLines = 1)
                         }
                     }
@@ -337,12 +339,19 @@ private fun <T> SelectorRow(
 
 @Composable
 private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val haptics = rememberClickHaptics()
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = {
+                haptics()
+                onChange(it)
+            },
+        )
     }
 }
 

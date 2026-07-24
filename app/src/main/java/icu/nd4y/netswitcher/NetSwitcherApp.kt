@@ -18,13 +18,13 @@ class NetSwitcherApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        Feedback.ensureChannel(this)
+        Feedback.ensureChannels(this)
 
         // Shortcuts and tiles live outside the UI process lifecycle; make sure they
         // reflect whatever configuration was persisted last time.
         appScope.launch {
-            ActionDispatcher.rememberToastPreference(
-                ConfigRepository.get(this@NetSwitcherApp).current().showToasts
+            ActionDispatcher.rememberNotificationPreference(
+                ConfigRepository.get(this@NetSwitcherApp).current().startNotification
             )
             SurfaceSync.syncAll(this@NetSwitcherApp)
         }

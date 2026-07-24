@@ -16,6 +16,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.data.ActionResult
+import icu.nd4y.netswitcher.data.StartNotification
 import icu.nd4y.netswitcher.ui.MainActivity
 
 /**
@@ -23,18 +24,17 @@ import icu.nd4y.netswitcher.ui.MainActivity
  *
  * A press from the widget, a launcher shortcut or a Quick Settings tile can land on a
  * cold process, and the privileged commands themselves take a couple of seconds — so
- * the press is acknowledged immediately and the acknowledgement is then rewritten with
- * the outcome.
+ * the press is acknowledged the moment it arrives.
  *
- * On Android 16+ that acknowledgement is a Live Update: a progress-centric ongoing
- * notification promoted to a status bar chip, which is visible over any screen without
- * covering it. Older releases fall back to a toast plus a plain progress notification.
+ * Start: a silent progress notification, either quiet in the shade or as a heads-up
+ * banner (the user's choice). On Android 16+ it is additionally promoted to a status
+ * bar chip. Finish: the notification is dismissed and the outcome comes as a toast.
  */
 object Feedback {
 
-    // Importance changed since the first release; a channel's settings are immutable
-    // once created, so the new behaviour needs a new id.
-    private const val CHANNEL_ID = "netswitcher_actions_v2"
+    // A channel's importance is fixed once created, so each behaviour needs its own.
+    private const val CHANNEL_SHADE = "netswitcher_progress_shade"
+    private const val CHANNEL_HEADS_UP = "netswitcher_progress_headsup"
     private const val NOTIFICATION_ID = 1001
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -43,81 +43,78 @@ object Feedback {
     val liveUpdatesSupported: Boolean
         get() = Build.VERSION.SDK_INT >= 36
 
-    fun ensureChannel(context: Context) {
+    fun ensureChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Переключение сети",
-            // A promoted ongoing notification needs a channel the system takes
-            // seriously, but it should never make a sound for a two-second action.
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply {
+        manager.createNotificationChannel(
+            channel(CHANNEL_SHADE, "Переключение сети", NotificationManager.IMPORTANCE_LOW)
+        )
+        manager.createNotificationChannel(
+            channel(
+                CHANNEL_HEADS_UP,
+                "Переключение сети (всплывающее)",
+                NotificationManager.IMPORTANCE_HIGH,
+            )
+        )
+    }
+
+    /** Both channels are deliberately mute: the haptic tick is the only "alert". */
+    private fun channel(id: String, name: String, importance: Int) =
+        NotificationChannel(id, name, importance).apply {
             description = "Ход выполнения переключения сети"
             setShowBadge(false)
             setSound(null, null)
             enableVibration(false)
+            enableLights(false)
         }
-        manager.createNotificationChannel(channel)
-    }
 
     /** Called the instant a press is registered, before any slow work starts. */
-    fun announceStart(context: Context, label: String, withToast: Boolean) {
+    fun announceStart(context: Context, label: String, style: StartNotification) {
         val app = context.applicationContext
         haptic(app)
-        // The chip already says what is happening; a toast on top of it is noise.
-        if (withToast || !liveUpdatesSupported) toast(app, "Переключаю: $label")
 
-        notify(app) {
-            setContentTitle("Переключаю: $label")
-            setContentText("Выполняю команды…")
-            setOngoing(true)
-            if (liveUpdatesSupported) {
-                setStyle(NotificationCompat.ProgressStyle().setProgressIndeterminate(true))
-                setShortCriticalText(label.take(12))
-                setRequestPromotedOngoing(true)
-            } else {
-                setProgress(0, 0, true)
-            }
-        }
-    }
-
-    fun announceResult(context: Context, result: ActionResult, withToast: Boolean) {
-        val app = context.applicationContext
-        if (withToast || !liveUpdatesSupported) toast(app, result.message)
-
-        // Promotion requires an ongoing notification, so the outcome is an ordinary
-        // one that dismisses itself.
-        notify(app) {
-            setContentTitle(if (result.success) "Готово" else "Не получилось")
-            setContentText(result.message)
-            setStyle(NotificationCompat.BigTextStyle().bigText(result.message))
-            setOngoing(false)
-            setAutoCancel(true)
-            setTimeoutAfter(if (result.success) 6_000 else 20_000)
-        }
-    }
-
-    private fun notify(context: Context, block: NotificationCompat.Builder.() -> Unit) {
-        val manager = NotificationManagerCompat.from(context)
+        val channelId =
+            if (style == StartNotification.HEADS_UP) CHANNEL_HEADS_UP else CHANNEL_SHADE
+        val manager = NotificationManagerCompat.from(app)
         if (!manager.areNotificationsEnabled()) return
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(app, channelId)
             .setSmallIcon(R.drawable.ic_tile)
-            .setOnlyAlertOnce(true)
+            .setContentTitle("Переключаю: $label")
+            .setContentText("Выполняю команды…")
+            .setOngoing(true)
             .setSilent(true)
-            .setContentIntent(
-                PendingIntent.getActivity(
-                    context,
-                    0,
-                    Intent(context, MainActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                )
+            .setOnlyAlertOnce(true)
+            .setPriority(
+                if (style == StartNotification.HEADS_UP) NotificationCompat.PRIORITY_HIGH
+                else NotificationCompat.PRIORITY_LOW
             )
-            .apply(block)
+            .setContentIntent(openApp(app))
+
+        if (liveUpdatesSupported) {
+            builder
+                .setStyle(NotificationCompat.ProgressStyle().setProgressIndeterminate(true))
+                .setShortCriticalText(label.take(12))
+                .setRequestPromotedOngoing(true)
+        } else {
+            builder.setProgress(0, 0, true)
+        }
 
         runCatching { manager.notify(NOTIFICATION_ID, builder.build()) }
     }
+
+    /** The operation is over: drop the notification, report the outcome as a toast. */
+    fun announceResult(context: Context, result: ActionResult) {
+        val app = context.applicationContext
+        runCatching { NotificationManagerCompat.from(app).cancel(NOTIFICATION_ID) }
+        toast(app, result.message)
+    }
+
+    private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 
     private fun toast(context: Context, text: String) {
         mainHandler.post {

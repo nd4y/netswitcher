@@ -179,7 +179,7 @@ class RunProfileAction : ActionCallback {
         val profileId = parameters[profileIdKey] ?: return
         val label = parameters[profileNameKey]
         if (label != null) {
-            Feedback.announceStart(context, label, ActionDispatcher.toastsEnabled)
+            Feedback.announceStart(context, label, ActionDispatcher.startNotification)
         }
         ActionDispatcher.runNow(context, profileId, alreadyAnnounced = label != null)
         NetSwitcherWidget().updateAll(context)

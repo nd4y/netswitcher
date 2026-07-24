@@ -110,30 +110,32 @@ private fun AppRoot() {
         if (wanted.isNotEmpty()) permissions.launch(wanted.toTypedArray())
     }
 
+    val haptics = rememberClickHaptics()
+
     Scaffold(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
                     selected = tab == 0,
-                    onClick = { tab = 0 },
+                    onClick = { haptics(); tab = 0 },
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text("Сети") },
                 )
                 NavigationBarItem(
                     selected = tab == 1,
-                    onClick = { tab = 1 },
+                    onClick = { haptics(); tab = 1 },
                     icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
                     label = { Text("Профили") },
                 )
                 NavigationBarItem(
                     selected = tab == 2,
-                    onClick = { tab = 2 },
+                    onClick = { haptics(); tab = 2 },
                     icon = { Icon(Icons.Filled.Menu, contentDescription = null) },
                     label = { Text("Кнопки") },
                 )
                 NavigationBarItem(
                     selected = tab == 3,
-                    onClick = { tab = 3 },
+                    onClick = { haptics(); tab = 3 },
                     icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                     label = { Text("Настройки") },
                 )
@@ -142,7 +144,7 @@ private fun AppRoot() {
     ) { insets ->
         val inner = Modifier.padding(insets)
         when (tab) {
-            0 -> HomeScreen(config, inner)
+            0 -> HomeScreen(config, controller, inner)
             1 -> ProfilesScreen(config, controller, inner) { editing = it }
             2 -> ButtonsScreen(config, controller, inner)
             else -> SettingsScreen(config, controller, inner)

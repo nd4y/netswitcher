@@ -35,6 +35,7 @@ import icu.nd4y.netswitcher.action.SurfaceSync
 import icu.nd4y.netswitcher.data.Backend
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
+import icu.nd4y.netswitcher.data.StartNotification
 import icu.nd4y.netswitcher.data.YamlConfig
 import icu.nd4y.netswitcher.engine.ShizukuShell
 import kotlinx.coroutines.launch
@@ -47,6 +48,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberClickHaptics()
     val tick by ShizukuEvents.ticks.collectAsStateWithLifecycle()
 
     // Keyed on `tick` so the status re-reads whenever Shizuku's binder or grant changes.
@@ -169,31 +171,53 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(16.dp))
-        Text("Поведение", style = MaterialTheme.typography.titleMedium)
+        Text("Уведомление о старте", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
-                SettingToggle(
-                    label = "Дублировать всплывающим сообщением",
-                    checked = config.showToasts,
-                    onChange = { value -> controller.edit { it.copy(showToasts = value) } },
-                )
+                Row(Modifier.fillMaxWidth()) {
+                    StartNotification.entries.forEach { style ->
+                        val label = when (style) {
+                            StartNotification.SHADE -> "В шторке"
+                            StartNotification.HEADS_UP -> "Всплывающее"
+                        }
+                        val onPick = {
+                            haptics()
+                            controller.edit { it.copy(startNotification = style) }
+                        }
+                        if (style == config.startNotification) {
+                            Button(onClick = onPick, modifier = Modifier.weight(1f)) {
+                                Text(label, maxLines = 1)
+                            }
+                        } else {
+                            OutlinedButton(onClick = onPick, modifier = Modifier.weight(1f)) {
+                                Text(label, maxLines = 1)
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    text = if (Feedback.liveUpdatesSupported) {
-                        "Ход переключения и так показывается чипом в статус-баре " +
-                            "(Live Update, Android 16+). Toast нужен, только если " +
-                            "хочется дублирования."
-                    } else {
-                        "На этой версии Android чипа в статус-баре нет — " +
-                            "всплывающее сообщение показывается всегда."
+                    text = buildString {
+                        append("Уведомление появляется в начале операции и всегда без ")
+                        append("звука и вибрации. По завершении оно закрывается само, ")
+                        append("а результат приходит всплывающим сообщением.")
+                        if (Feedback.liveUpdatesSupported) {
+                            append(" Дополнительно показывается чип в статус-баре ")
+                            append("(Live Update, Android 16+).")
+                        }
                     },
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
                 SettingToggle(
                     label = "Показывать журнал команд",
                     checked = config.verboseLog,
-                    onChange = { value -> controller.edit { it.copy(verboseLog = value) } },
+                    onChange = { value ->
+                        haptics()
+                        controller.edit { it.copy(verboseLog = value) }
+                    },
                 )
             }
         }
@@ -237,9 +261,20 @@ fun SettingsScreen(
                 ) { Text("Разрешения приложения") }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { controller.edit { Config.default() } },
+                    onClick = {
+                        haptics()
+                        controller.edit { it.withDefaultLayout() }
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Сбросить конфигурацию") }
+                ) { Text("Сбросить расположение кнопок") }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Возвращает кнопки на главном экране, в ярлыках, виджете и " +
+                        "плитках к расположению по умолчанию. Сами профили и пароли " +
+                        "не трогает — полный сброс делается очисткой данных в " +
+                        "настройках Android.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
 

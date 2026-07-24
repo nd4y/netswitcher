@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import icu.nd4y.netswitcher.action.ActionDispatcher
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.Profile
+import icu.nd4y.netswitcher.data.ProfileKind
 import icu.nd4y.netswitcher.engine.NetworkSnapshot
 import icu.nd4y.netswitcher.engine.NetworkStatus
 import icu.nd4y.netswitcher.engine.PrivilegeManager
@@ -47,19 +49,22 @@ import icu.nd4y.netswitcher.engine.PrivilegeState
 import kotlinx.coroutines.launch
 
 @Composable
-fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
+fun HomeScreen(
+    config: Config,
+    controller: ConfigController,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var snapshot by remember { mutableStateOf<NetworkSnapshot?>(null) }
     var privilege by remember { mutableStateOf<PrivilegeState?>(null) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    var states by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
     val tick by ShizukuEvents.ticks.collectAsStateWithLifecycle()
     val running by ActionDispatcher.running.collectAsStateWithLifecycle()
     val lastResult by ActionDispatcher.lastResult.collectAsStateWithLifecycle()
-
-    var states by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
     LaunchedEffect(tick, refreshKey, config, running) {
         if (running != null) return@LaunchedEffect
@@ -71,7 +76,7 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
 
     val shown = config.homeProfiles()
     val toggles = shown.filter { it.kind.isToggle }
-    val actions = shown.filterNot { it.kind.isToggle }
+    val networks = shown.filter { it.kind == ProfileKind.WIFI }
 
     Column(
         modifier = modifier
@@ -81,43 +86,14 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
     ) {
         Spacer(Modifier.height(12.dp))
 
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = snapshot?.transport ?: "…",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    Text(
-                        text = snapshot?.detail ?: "определяю состояние",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = privilege?.description ?: "проверяю привилегии",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (privilege?.hasPrivileges == true) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
-                    )
-                }
-                IconButton(onClick = { refreshKey++ }) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Обновить")
-                }
-            }
-        }
+        StatusCard(
+            snapshot = snapshot,
+            privilege = privilege,
+            onRefresh = { refreshKey++ },
+        )
 
         if (toggles.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
-            Text("Переключатели", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
             toggles.chunked(4).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEachIndexed { index, profile ->
@@ -141,61 +117,60 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
             }
         }
 
-        if (actions.isNotEmpty()) {
+        if (networks.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
-            Text("Быстрое переключение", style = MaterialTheme.typography.titleMedium)
+            Text("Сети Wi-Fi", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Удержание — перетащить карточку",
+                style = MaterialTheme.typography.bodySmall,
+            )
             Spacer(Modifier.height(8.dp))
 
-            // A plain chunked Row grid: a lazy grid inside a scrolling column is more
-            // trouble than it is worth for a handful of buttons.
-            actions.chunked(2).forEach { pair ->
-                Row(Modifier.fillMaxWidth()) {
-                    pair.forEachIndexed { index, profile ->
-                        if (index > 0) Spacer(Modifier.width(10.dp))
-                        ProfileButton(
-                            profile = profile,
-                            busy = running == profile.id,
-                            isActive = states[profile.id] == true,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                scope.launch { ActionDispatcher.runNow(context, profile) }
-                            },
-                        )
-                    }
-                    if (pair.size == 1) {
-                        Spacer(Modifier.width(10.dp))
-                        Spacer(Modifier.weight(1f))
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
+            ReorderableColumn(
+                count = networks.size,
+                onMove = { from, to ->
+                    val order = networks.map { it.id }.moveItem(from, to)
+                    controller.edit { it.reordered(order) }
+                },
+            ) { index, isDragging ->
+                val profile = networks[index]
+                NetworkCard(
+                    profile = profile,
+                    busy = running == profile.id,
+                    isActive = states[profile.id] == true,
+                    isDragging = isDragging,
+                    onClick = { scope.launch { ActionDispatcher.runNow(context, profile) } },
+                )
             }
         }
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(16.dp))
 
-        lastResult?.let { result ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (result.success) {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.errorContainer
-                    }
-                ),
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(result.message, style = MaterialTheme.typography.bodyLarge)
-                    if (config.verboseLog && result.log.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
-                        result.log.forEach { line ->
-                            Text(
-                                text = line,
-                                style = MaterialTheme.typography.bodySmall
-                                    .copy(fontFamily = FontFamily.Monospace),
-                                maxLines = 4,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+        if (config.verboseLog) {
+            lastResult?.let { result ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (result.success) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        }
+                    ),
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text(result.message, style = MaterialTheme.typography.bodyLarge)
+                        if (result.log.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            result.log.forEach { line ->
+                                Text(
+                                    text = line,
+                                    style = MaterialTheme.typography.bodySmall
+                                        .copy(fontFamily = FontFamily.Monospace),
+                                    maxLines = 4,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
@@ -203,6 +178,50 @@ fun HomeScreen(config: Config, modifier: Modifier = Modifier) {
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Where the phone is connected right now — the first thing on the screen. */
+@Composable
+private fun StatusCard(
+    snapshot: NetworkSnapshot?,
+    privilege: PrivilegeState?,
+    onRefresh: () -> Unit,
+) {
+    ElevatedCard(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = snapshot?.detail ?: "определяю состояние",
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = snapshot?.transport ?: "…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = privilege?.description ?: "проверяю привилегии",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (privilege?.hasPrivileges == true) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
+            }
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Filled.Refresh, contentDescription = "Обновить")
+            }
+        }
     }
 }
 
@@ -258,15 +277,18 @@ private fun ToggleButton(
 }
 
 @Composable
-private fun ProfileButton(
+private fun NetworkCard(
     profile: Profile,
     busy: Boolean,
     isActive: Boolean,
-    modifier: Modifier = Modifier,
+    isDragging: Boolean,
     onClick: () -> Unit,
 ) {
     ElevatedCard(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = if (isDragging) 8.dp else 1.dp
+        ),
         colors = if (isActive) {
             CardDefaults.elevatedCardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -292,7 +314,7 @@ private fun ProfileButton(
                     modifier = Modifier.size(24.dp),
                 )
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     text = profile.name,
@@ -301,12 +323,24 @@ private fun ProfileButton(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = profile.subtitle,
+                    text = when {
+                        isActive && profile.tapAgainDisconnects ->
+                            "подключено · нажмите, чтобы отключиться"
+
+                        isActive -> "подключено"
+                        else -> profile.subtitle
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Icon(
+                imageVector = Icons.Filled.Menu,
+                contentDescription = "Перетащить",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
