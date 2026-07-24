@@ -12,6 +12,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Needed for the tag build to create a GitHub Release; the default token is
+    # read-only for contents.
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
