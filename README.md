@@ -230,6 +230,27 @@ Wi-Fi-профили конкретных сетей тоже работают �
 Одна ловушка: в YAML 1.1 голые `off` / `on` / `yes` / `no` читаются как булевы, поэтому
 `id` всегда пишите в кавычках. Экспорт делает это сам.
 
+## Автодеплой по adb
+
+Для автоматизации «поставил новую версию → залил конфиг» есть headless-импорт YAML
+без единого тапа по телефону (нужна включённая отладка по USB или Wi-Fi):
+
+```bash
+adb install -r netswitcher.apk
+adb shell am start -n icu.nd4y.netswitcher/.ui.MainActivity
+adb shell am broadcast -n icu.nd4y.netswitcher/.action.ConfigImportReceiver \
+    -a icu.nd4y.netswitcher.action.IMPORT_CONFIG \
+    --es yaml_base64 "$(base64 -w0 my-config.yaml)"
+```
+
+Броадкаст возвращает `result=0` при успехе (в `resultData` — число профилей), на
+телефоне показывается toast. YAML передаётся в base64, чтобы пережить shell-квотинг.
+Семантика — как у импорта из приложения: полная замена, битый файл отвергается целиком.
+
+Ресивер экспортирован, но закрыт разрешением `android.permission.DUMP` — оно есть у
+adb shell, а обычное стороннее приложение получить его не может, так что endpoint
+доступен только тому, у кого и так есть adb-доступ к устройству.
+
 ## Ethernet
 
 Профиль Ethernet выключает Wi-Fi и мобильные данные, чтобы маршрутом по умолчанию стал

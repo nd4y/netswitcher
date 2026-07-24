@@ -14,8 +14,8 @@ android {
         applicationId = "icu.nd4y.netswitcher"
         minSdk = 31
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.12"
+        versionCode = 14
+        versionName = "1.13"
     }
 
     // Release signing comes from the environment so the key never lives in the repo.
