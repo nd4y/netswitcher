@@ -105,12 +105,21 @@ class SwitchEngine(context: Context) {
         val target = !wasUp
         val verb = if (target) "enable" else "disable"
 
-        val viaCmd = exec(shell, "cmd ethernet $verb ${shQuote(iface)}", log)
-        if (!viaCmd.ok || viaCmd.output.contains("Unknown command", ignoreCase = true)) {
-            exec(shell, "ip link set ${shQuote(iface)} ${if (target) "up" else "down"}", log)
+        // AOSP names the shell subcommand `enable-interface`/`disable-interface`; the
+        // bare `enable` spelling is kept as a second try for builds that differ, and
+        // `ip link` is the last resort — that one works only when the shell is root.
+        // Each attempt is verified against the actual link state before the next.
+        var settled = false
+        val commands = listOf(
+            "cmd ethernet $verb-interface ${shQuote(iface)}",
+            "cmd ethernet $verb ${shQuote(iface)}",
+            "ip link set ${shQuote(iface)} ${if (target) "up" else "down"}",
+        )
+        for (command in commands) {
+            exec(shell, command, log)
+            settled = await(log, attempts = 4) { NetworkStatus.isEthernetUp(appContext) == target }
+            if (settled) break
         }
-
-        val settled = await(log) { NetworkStatus.isEthernetUp(appContext) == target }
         return if (settled) {
             ActionResult(true, if (target) "Ethernet включён" else "Ethernet выключен", log)
         } else {
@@ -302,7 +311,9 @@ class SwitchEngine(context: Context) {
         applyMobileData(shell, profile.mobileData, log)
 
         if (profile.ethernetInterface.isNotBlank()) {
-            // Best effort: only works when the shell runs as root.
+            // Best effort: the shell subcommand works with Shizuku on current builds,
+            // `ip link` only when the shell runs as root.
+            exec(shell, "cmd ethernet enable-interface ${shQuote(profile.ethernetInterface)}", log)
             exec(shell, "ip link set ${shQuote(profile.ethernetInterface)} up", log)
         }
 

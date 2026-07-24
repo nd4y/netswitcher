@@ -2,6 +2,7 @@ package icu.nd4y.netswitcher.engine
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 
 /** Plain `su -c` backend, for rooted devices. */
 object RootShell : PrivilegedShell {
@@ -15,8 +16,18 @@ object RootShell : PrivilegedShell {
         cachedAvailable?.let { return it }
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                val process = ProcessBuilder("su", "-c", "id").redirectErrorStream(false).start()
-                drain("id", process).stdout.contains("uid=0")
+                // A root manager may pop a grant dialog and keep `su` alive until the
+                // user answers — an unbounded read here froze the status card on
+                // "checking privileges". Bound the probe; a denied/hung su is "no root".
+                val process = ProcessBuilder("su", "-c", "id").start()
+                if (!process.waitFor(10, TimeUnit.SECONDS)) {
+                    process.destroyForcibly()
+                    false
+                } else {
+                    process.exitValue() == 0 &&
+                        process.inputStream.bufferedReader().use { it.readText() }
+                            .contains("uid=0")
+                }
             }.getOrDefault(false)
         }
         cachedAvailable = result

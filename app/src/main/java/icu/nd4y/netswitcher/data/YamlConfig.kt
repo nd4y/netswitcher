@@ -111,12 +111,19 @@ object YamlConfig {
             }
             .toMap()
 
+        val byId = profiles.associateBy { it.id }
+
         Config(
             profiles = profiles,
             // A file without a `home:` key means "show everything", not "show nothing".
-            homeIds = root.ids("home", known).ifEmpty {
-                if (root.containsKey("home")) emptyList() else profiles.map { it.id }
-            },
+            // Either way the list is trimmed to what the main screen actually renders
+            // (toggles and Wi-Fi networks) — a one-shot action in `home` would be a
+            // dead entry that never draws but clutters the buttons picker.
+            homeIds = root.ids("home", known)
+                .ifEmpty {
+                    if (root.containsKey("home")) emptyList() else profiles.map { it.id }
+                }
+                .filter { byId[it]?.kind?.rendersOnHomeScreen == true },
             shortcutIds = root.ids("shortcuts", known),
             widgetIds = root.ids("widget", known),
             tileBindings = tiles,

@@ -100,10 +100,13 @@ private fun AppRoot() {
 
     LaunchedEffect(Unit) {
         // READ_PHONE_STATE lists the SIMs; POST_NOTIFICATIONS carries the progress
-        // notification that acknowledges presses from outside the app.
+        // notification that acknowledges presses from outside the app; without
+        // ACCESS_FINE_LOCATION Android hides the current SSID, so the "connected"
+        // highlight on network cards, tiles and the widget never lights up.
         val wanted = listOf(
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_FINE_LOCATION,
         ).filter {
             ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }

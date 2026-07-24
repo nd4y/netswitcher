@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -48,6 +49,10 @@ fun ReorderableColumn(
     val spacingPx = with(LocalDensity.current) { spacing.toPx() }
     val step = rowHeight + spacingPx
     val onDragStart = rememberDragHaptics()
+    // The pointerInput coroutine below starts once and keeps the lambdas it captured
+    // then; without this indirection onDragEnd would call the FIRST composition's
+    // onMove, built around a stale list.
+    val currentOnMove by rememberUpdatedState(onMove)
 
     val targetIndex =
         if (dragIndex < 0 || step <= 0f) -1
@@ -91,11 +96,19 @@ fun ReorderableColumn(
                                 dragOffset += amount.y
                             },
                             onDragEnd = {
+                                // Recompute the target here from State (read fresh) —
+                                // the composition-level `targetIndex` val is captured
+                                // stale by this closure and would still be -1, which
+                                // silently dropped every reorder.
                                 val from = dragIndex
-                                val to = targetIndex
+                                val endStep = rowHeight + spacingPx
+                                val to =
+                                    if (from < 0 || endStep <= 0f) -1
+                                    else (from + (dragOffset / endStep).roundToInt())
+                                        .coerceIn(0, count - 1)
                                 dragIndex = -1
                                 dragOffset = 0f
-                                if (from >= 0 && to >= 0 && from != to) onMove(from, to)
+                                if (from >= 0 && to >= 0 && from != to) currentOnMove(from, to)
                             },
                             onDragCancel = {
                                 dragIndex = -1

@@ -187,6 +187,33 @@ class YamlConfigTest {
     }
 
     @Test
+    fun `home list drops one-shot actions on import`() {
+        val yaml = """
+            profiles:
+              - id: "w"
+                name: "W"
+                kind: WIFI
+                ssid: "X"
+              - id: "wifioff"
+                name: "Off"
+                kind: WIFI_OFF
+            home:
+              - "w"
+              - "wifioff"
+        """.trimIndent()
+
+        val config = YamlConfig.decode(yaml).getOrThrow()
+
+        // The one-shot stays available as a profile, just not on the main screen.
+        assertEquals(listOf("w"), config.homeIds)
+        assertEquals(2, config.profiles.size)
+
+        // The missing-home fallback ("show everything") is trimmed the same way.
+        val seeded = YamlConfig.decode(yaml.substringBefore("home:")).getOrThrow()
+        assertEquals(listOf("w"), seeded.homeIds)
+    }
+
+    @Test
     fun `garbage input fails instead of wiping the configuration`() {
         assertTrue(YamlConfig.decode("не yaml вовсе: [[[").isFailure)
         assertTrue(YamlConfig.decode("version: 1").isFailure)
