@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -45,6 +46,7 @@ fun EditProfileDialog(
     profile: Profile,
     onDismiss: () -> Unit,
     onSave: (Profile) -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val sims = remember { TelephonyOps.readSims(context) }
@@ -174,8 +176,17 @@ fun EditProfileDialog(
                 Spacer(Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (onDelete != null) {
+                        TextButton(
+                            onClick = onDelete,
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) { Text("Удалить") }
+                    }
+                    Spacer(Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Отмена") }
                     Spacer(Modifier.width(8.dp))
                     Button(

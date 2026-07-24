@@ -64,9 +64,6 @@ private class OverlayHost(
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
 
         val composeView = ComposeView(appContext).apply {
-            setViewTreeLifecycleOwner(this@OverlayHost)
-            setViewTreeSavedStateRegistryOwner(this@OverlayHost)
-            setViewTreeOnBackPressedDispatcherOwner(this@OverlayHost)
             setContent {
                 NetSwitcherTheme {
                     PanelRoot(onFinish = { detach() })
@@ -83,6 +80,13 @@ private class OverlayHost(
             }
         }.apply {
             isFocusableInTouchMode = true
+            // The owners MUST sit on the window's root view: Compose creates the window
+            // recomposer on the root and resolves ViewTreeLifecycleOwner from there.
+            // With the owners only on the child ComposeView this crashed the process
+            // ("ViewTreeLifecycleOwner not found") as soon as the overlay attached.
+            setViewTreeLifecycleOwner(this@OverlayHost)
+            setViewTreeSavedStateRegistryOwner(this@OverlayHost)
+            setViewTreeOnBackPressedDispatcherOwner(this@OverlayHost)
             addView(
                 composeView,
                 ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.action.ActionDispatcher
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.Profile
@@ -46,6 +49,7 @@ import icu.nd4y.netswitcher.engine.NetworkSnapshot
 import icu.nd4y.netswitcher.engine.NetworkStatus
 import icu.nd4y.netswitcher.engine.PrivilegeManager
 import icu.nd4y.netswitcher.engine.PrivilegeState
+import java.util.UUID
 import kotlinx.coroutines.launch
 
 @Composable
@@ -53,9 +57,12 @@ fun HomeScreen(
     config: Config,
     controller: ConfigController,
     modifier: Modifier = Modifier,
+    onEdit: (Profile) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberClickHaptics()
+    var sharing by remember { mutableStateOf<Profile?>(null) }
 
     var snapshot by remember { mutableStateOf<NetworkSnapshot?>(null) }
     var privilege by remember { mutableStateOf<PrivilegeState?>(null) }
@@ -117,15 +124,34 @@ fun HomeScreen(
             }
         }
 
-        if (networks.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Text("Сети Wi-Fi", style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = "Удержание — перетащить карточку",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Сети Wi-Fi", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Удержание — перетащить, карандаш — изменить",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            IconButton(onClick = {
+                haptics()
+                onEdit(
+                    Profile(
+                        id = UUID.randomUUID().toString().take(8),
+                        name = "Новая сеть",
+                        kind = ProfileKind.WIFI,
+                    )
+                )
+            }) {
+                Icon(Icons.Filled.Add, contentDescription = "Добавить профиль")
+            }
+        }
+        Spacer(Modifier.height(4.dp))
 
+        if (networks.isNotEmpty()) {
             ReorderableColumn(
                 count = networks.size,
                 onMove = { from, to ->
@@ -140,11 +166,40 @@ fun HomeScreen(
                     isActive = states[profile.id] == true,
                     isDragging = isDragging,
                     onClick = { scope.launch { ActionDispatcher.runNow(context, profile) } },
+                    onShare = if (profile.ssid.isNotBlank()) {
+                        { haptics(); sharing = profile }
+                    } else null,
+                    onEditClick = { haptics(); onEdit(profile) },
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        // Profiles the main screen doesn't draw as buttons: one-shot actions plus
+        // anything deselected from `home` in the buttons picker. They are still
+        // usable from the widget, shortcuts and tiles — this section is where they
+        // get edited now that the separate "Профили" tab is gone.
+        val others = config.profiles.filter { it.id !in config.homeIds }
+        if (others.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Text("Остальные профили", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "На главном экране не показываются — нажмите, чтобы изменить",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            others.forEach { profile ->
+                OtherProfileRow(
+                    profile = profile,
+                    onClick = { haptics(); onEdit(profile) },
+                    onShare = if (profile.kind == ProfileKind.WIFI && profile.ssid.isNotBlank()) {
+                        { haptics(); sharing = profile }
+                    } else null,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         if (config.verboseLog) {
             lastResult?.let { result ->
@@ -178,6 +233,10 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+
+    sharing?.let { profile ->
+        ShareNetworkDialog(profile = profile, onDismiss = { sharing = null })
     }
 }
 
@@ -283,6 +342,8 @@ private fun NetworkCard(
     isActive: Boolean,
     isDragging: Boolean,
     onClick: () -> Unit,
+    onShare: (() -> Unit)?,
+    onEditClick: () -> Unit,
 ) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -335,10 +396,81 @@ private fun NetworkCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            if (onShare != null) {
+                IconButton(onClick = onShare, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_share),
+                        contentDescription = "Поделиться",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            IconButton(onClick = onEditClick, modifier = Modifier.size(34.dp)) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = "Изменить",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.width(2.dp))
             Icon(
                 imageVector = Icons.Filled.Menu,
                 contentDescription = "Перетащить",
                 modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** A profile that never draws on the main screen; tapping opens the editor. */
+@Composable
+private fun OtherProfileRow(
+    profile: Profile,
+    onClick: () -> Unit,
+    onShare: (() -> Unit)?,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(profile.iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = profile.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = profile.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (onShare != null) {
+                IconButton(onClick = onShare, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_share),
+                        contentDescription = "Поделиться",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = "Изменить",
+                modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

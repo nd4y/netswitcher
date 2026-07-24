@@ -218,19 +218,10 @@ class SwitchEngine(context: Context) {
         exec(shell, "cmd wifi set-wifi-enabled enabled", log)
         delay(700)
 
-        val command = buildString {
-            append("cmd wifi connect-network ")
-            append(shQuote(profile.ssid))
-            append(' ')
-            append(profile.security.token)
-            if (profile.security.needsPassword) {
-                append(' ')
-                append(shQuote(profile.password))
-            }
-            if (profile.hiddenSsid) append(" -h")
-            if (profile.bssid.isNotBlank()) append(" -b ${profile.bssid}")
-        }
-        val result = exec(shell, command, log)
+        val command = buildConnectCommand(profile, redactPassword = false)
+        // The verbose log is shown on screen — the real command carries the Wi-Fi
+        // password, so the logged copy masks it.
+        val result = exec(shell, command, log, logAs = buildConnectCommand(profile, redactPassword = true))
 
         applyMobileData(shell, profile.mobileData, log)
 
@@ -381,13 +372,29 @@ class SwitchEngine(context: Context) {
         }
     }
 
+    private fun buildConnectCommand(profile: Profile, redactPassword: Boolean): String =
+        buildString {
+            append("cmd wifi connect-network ")
+            append(shQuote(profile.ssid))
+            append(' ')
+            append(profile.security.token)
+            if (profile.security.needsPassword) {
+                append(' ')
+                append(if (redactPassword) "'••••••'" else shQuote(profile.password))
+            }
+            if (profile.hiddenSsid) append(" -h")
+            if (profile.bssid.isNotBlank()) append(" -b ${profile.bssid}")
+        }
+
+    /** [logAs] is what lands in the on-screen log — pass a redacted copy for secrets. */
     private suspend fun exec(
         shell: PrivilegedShell,
         command: String,
         log: MutableList<String>,
+        logAs: String = command,
     ): ShellResult {
         val result = shell.exec(command)
-        log += "$ $command -> ${result.exitCode}" +
+        log += "$ $logAs -> ${result.exitCode}" +
             if (result.output.isBlank()) "" else " | ${result.output.take(200)}"
         return result
     }

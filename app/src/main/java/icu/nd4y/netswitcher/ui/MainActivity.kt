@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -127,18 +126,12 @@ private fun AppRoot() {
                 NavigationBarItem(
                     selected = tab == 1,
                     onClick = { haptics(); tab = 1 },
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                    label = { Text("Профили") },
-                )
-                NavigationBarItem(
-                    selected = tab == 2,
-                    onClick = { haptics(); tab = 2 },
                     icon = { Icon(Icons.Filled.Menu, contentDescription = null) },
                     label = { Text("Кнопки") },
                 )
                 NavigationBarItem(
-                    selected = tab == 3,
-                    onClick = { haptics(); tab = 3 },
+                    selected = tab == 2,
+                    onClick = { haptics(); tab = 2 },
                     icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                     label = { Text("Настройки") },
                 )
@@ -147,27 +140,49 @@ private fun AppRoot() {
     ) { insets ->
         val inner = Modifier.padding(insets)
         when (tab) {
-            0 -> HomeScreen(config, controller, inner)
-            1 -> ProfilesScreen(config, controller, inner) { editing = it }
-            2 -> ButtonsScreen(config, controller, inner)
+            0 -> HomeScreen(config, controller, inner) { editing = it }
+            1 -> ButtonsScreen(config, controller, inner)
             else -> SettingsScreen(config, controller, inner)
         }
     }
 
     editing?.let { profile ->
+        val exists = config.profiles.any { it.id == profile.id }
         EditProfileDialog(
             profile = profile,
             onDismiss = { editing = null },
             onSave = { updated ->
                 controller.edit { current ->
-                    val exists = current.profiles.any { it.id == updated.id }
+                    val known = current.profiles.any { it.id == updated.id }
                     val profiles =
-                        if (exists) current.profiles.map { if (it.id == updated.id) updated else it }
+                        if (known) current.profiles.map { if (it.id == updated.id) updated else it }
                         else current.profiles + updated
-                    current.copy(profiles = profiles)
+                    // A newly added network lands on the main screen right away —
+                    // otherwise it would silently drop into "Остальные профили".
+                    val homeIds =
+                        if (!known && updated.kind.rendersOnHomeScreen &&
+                            updated.id !in current.homeIds
+                        ) current.homeIds + updated.id
+                        else current.homeIds
+                    current.copy(profiles = profiles, homeIds = homeIds)
                 }
                 editing = null
             },
+            onDelete = if (exists) {
+                {
+                    controller.edit { current ->
+                        current.copy(
+                            profiles = current.profiles.filterNot { it.id == profile.id },
+                            homeIds = current.homeIds - profile.id,
+                            shortcutIds = current.shortcutIds - profile.id,
+                            widgetIds = current.widgetIds - profile.id,
+                            tileBindings = current.tileBindings
+                                .filterValues { it != profile.id },
+                        )
+                    }
+                    editing = null
+                }
+            } else null,
         )
     }
 }
