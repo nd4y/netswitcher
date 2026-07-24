@@ -7,6 +7,27 @@ import org.junit.Test
 class YamlConfigTest {
 
     @Test
+    fun `default home screen excludes one-shot actions HomeScreen never renders`() {
+        val config = Config.default()
+
+        val oneShotIds = config.profiles
+            .filter { it.kind in listOf(
+                ProfileKind.CELLULAR, ProfileKind.ETHERNET,
+                ProfileKind.WIFI_ON, ProfileKind.WIFI_OFF,
+            ) }
+            .map { it.id }
+        assertTrue(oneShotIds.isNotEmpty()) // sanity: the default config still has them
+
+        // They may live on the widget/shortcuts/tiles, just never on the main screen —
+        // HomeScreen only draws toggles and Wi-Fi networks.
+        assertTrue(oneShotIds.none { it in config.homeIds })
+        assertEquals(
+            config.profiles.filter { it.kind.rendersOnHomeScreen }.map { it.id },
+            config.homeIds,
+        )
+    }
+
+    @Test
     fun `default config survives a round trip`() {
         val original = Config.default()
         val decoded = YamlConfig.decode(YamlConfig.encode(original)).getOrThrow()
@@ -47,7 +68,19 @@ class YamlConfigTest {
         val restored = config.withDefaultLayout()
 
         assertEquals(config.profiles, restored.profiles)
-        assertEquals(config.profiles.map { it.id }, restored.homeIds)
+        // Only what HomeScreen actually renders — toggles and Wi-Fi networks. One-shot
+        // actions (LTE only, Wi-Fi on/off, Ethernet only) never appear there, so they
+        // must not come back as dead entries in homeIds after a reset.
+        assertEquals(
+            config.profiles.filter { it.kind.rendersOnHomeScreen }.map { it.id },
+            restored.homeIds,
+        )
+        assertTrue(restored.homeIds.none { id ->
+            config.profile(id)?.kind in listOf(
+                ProfileKind.CELLULAR, ProfileKind.ETHERNET,
+                ProfileKind.WIFI_ON, ProfileKind.WIFI_OFF,
+            )
+        })
         assertTrue(restored.widgetIds.isNotEmpty())
         assertTrue(restored.tileBindings.isNotEmpty())
         assertTrue(restored.tileBindings.values.all { id -> config.profiles.any { it.id == id } })

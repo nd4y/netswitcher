@@ -61,12 +61,14 @@ fun ButtonsScreen(
         Section("Главный экран приложения") {
             Text(
                 text = "Профили-переключатели рисуются компактным рядом сверху, " +
-                    "остальные — крупными кнопками ниже.",
+                    "Wi-Fi-сети — карточками ниже. Одноразовые действия (LTE only, " +
+                    "Wi-Fi on/off, Ethernet only) сюда не выводятся — им место на " +
+                    "виджете, ярлыке или плитке.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
             OrderedPicker(
-                all = config.profiles,
+                all = config.profiles.filter { it.kind.rendersOnHomeScreen },
                 selected = config.homeIds,
                 onChange = { ids -> controller.edit { it.copy(homeIds = ids) } },
             )

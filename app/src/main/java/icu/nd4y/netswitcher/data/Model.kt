@@ -36,6 +36,15 @@ enum class ProfileKind {
     val isToggle: Boolean
         get() = this == WIFI_TOGGLE || this == CELLULAR_TOGGLE ||
             this == ETHERNET_TOGGLE || this == AIRPLANE_TOGGLE
+
+    /**
+     * Whether [icu.nd4y.netswitcher.ui.HomeScreen] actually draws a button for this
+     * kind — toggles and Wi-Fi networks. One-shot actions (LTE only, Wi-Fi on/off,
+     * Ethernet only) are deliberately left off the main screen; they belong on a
+     * widget, a shortcut, or a tile instead.
+     */
+    val rendersOnHomeScreen: Boolean
+        get() = isToggle || this == WIFI
 }
 
 /** Security token accepted by `cmd wifi connect-network`. */
@@ -153,7 +162,7 @@ data class Config(
         val toggles = profiles.filter { it.kind.isToggle }.map { it.id }
         val networks = profiles.filter { it.kind == ProfileKind.WIFI }.map { it.id }
         return copy(
-            homeIds = profiles.map { it.id },
+            homeIds = profiles.filter { it.kind.rendersOnHomeScreen }.map { it.id },
             shortcutIds = (toggles + networks).take(4),
             widgetIds = (toggles + networks).take(8),
             tileBindings = (toggles + networks + profiles.map { it.id })
@@ -214,8 +223,9 @@ data class Config(
             )
             return Config(
                 profiles = profiles,
-                // Toggles first: they render as the compact top row of the main screen.
-                homeIds = profiles.map { it.id },
+                // Toggles + Wi-Fi networks only — the two kinds HomeScreen renders.
+                // One-shot actions stay off the main screen (see rendersOnHomeScreen).
+                homeIds = profiles.filter { it.kind.rendersOnHomeScreen }.map { it.id },
                 shortcutIds = listOf("wifi_sw", "lte_sw", "home", "air_sw"),
                 widgetIds = listOf(
                     "wifi_sw", "lte_sw", "eth_sw", "air_sw",

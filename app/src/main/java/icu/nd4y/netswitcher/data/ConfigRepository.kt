@@ -45,9 +45,10 @@ class ConfigRepository private constructor(context: Context) {
         if (raw == null) return Config.default()
         val config = decodeOrNull(raw) ?: return Config.default()
         // Configs written before the main screen became configurable have no homeIds;
-        // seed them with every profile so nothing disappears after an update.
+        // seed them with what HomeScreen actually renders (toggles + Wi-Fi networks),
+        // same as a fresh default — one-shot actions were never shown here either way.
         return if (config.homeIds.isEmpty() && config.profiles.isNotEmpty()) {
-            config.copy(homeIds = config.profiles.map { it.id })
+            config.copy(homeIds = config.profiles.filter { it.kind.rendersOnHomeScreen }.map { it.id })
         } else {
             config
         }
