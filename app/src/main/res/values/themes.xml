@@ -14,11 +14,15 @@
     </style>
 
     <!-- The pop-up panel launched from the Quick Settings tile: a translucent window
-         that draws its own scrim and slides a card up from the bottom in Compose. -->
+         that draws its own scrim and slides a card up from the bottom in Compose.
+         windowAnimationStyle is nulled out so the OS doesn't also play its own activity
+         transition on top of ours — some launchers/skins add a heavy scale-and-fade for
+         translucent activities, which fights the Compose slide and reads as jank. -->
     <style name="Theme.NetSwitcher.Panel" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
         <item name="android:backgroundDimEnabled">false</item>
     </style>
 </resources>

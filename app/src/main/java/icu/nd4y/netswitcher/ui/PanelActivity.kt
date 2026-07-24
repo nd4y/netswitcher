@@ -2,9 +2,13 @@ package icu.nd4y.netswitcher.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -78,14 +82,14 @@ class PanelActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NetSwitcherTheme {
-                PanelRoot(onDismiss = { finish() })
+                PanelRoot(onFinish = { finish() })
             }
         }
     }
 }
 
 @Composable
-private fun PanelRoot(onDismiss: () -> Unit) {
+private fun PanelRoot(onFinish: () -> Unit) {
     val context = LocalContext.current
     val repo = remember { ConfigRepository.get(context) }
     val config by repo.flow.collectAsStateWithLifecycle(initialValue = Config.default())
@@ -105,9 +109,15 @@ private fun PanelRoot(onDismiss: () -> Unit) {
         states = config.profiles.associate { it.id to NetworkStatus.quickActive(context, it) }
     }
 
-    // Play the slide-up once, on first composition.
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
+    // Drives the slide: starts false->true on first composition (the entrance), and is
+    // flipped back to false on dismiss so the exit animation gets to play in full before
+    // the activity actually finishes — closing used to cut it off mid-flight.
+    val visibleState = remember { MutableTransitionState(false).apply { targetState = true } }
+    val requestDismiss: () -> Unit = { visibleState.targetState = false }
+    LaunchedEffect(visibleState.currentState, visibleState.targetState) {
+        if (!visibleState.targetState && !visibleState.currentState) onFinish()
+    }
+    BackHandler(onBack = requestDismiss)
 
     val shown = config.homeProfiles()
     val toggles = shown.filter { it.kind.isToggle }
@@ -126,15 +136,19 @@ private fun PanelRoot(onDismiss: () -> Unit) {
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onDismiss,
+                    onClick = requestDismiss,
                 ),
         )
 
         AnimatedVisibility(
-            visible = visible,
+            visibleState = visibleState,
             modifier = Modifier.align(Alignment.BottomCenter),
-            enter = slideInVertically(tween(220)) { it } + fadeIn(tween(220)),
-            exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(180)),
+            enter = slideInVertically(
+                spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+            ) { it } + fadeIn(tween(150)),
+            exit = slideOutVertically(
+                spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+            ) { it } + fadeOut(tween(150)),
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -165,7 +179,7 @@ private fun PanelRoot(onDismiss: () -> Unit) {
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = onDismiss) {
+                        IconButton(onClick = requestDismiss) {
                             Icon(Icons.Filled.Close, contentDescription = "Закрыть")
                         }
                     }
