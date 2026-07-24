@@ -12,4 +12,13 @@
         <item name="android:windowAnimationStyle">@null</item>
         <item name="android:backgroundDimEnabled">false</item>
     </style>
+
+    <!-- The pop-up panel launched from the Quick Settings tile: a translucent window
+         that draws its own scrim and slides a card up from the bottom in Compose. -->
+    <style name="Theme.NetSwitcher.Panel" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

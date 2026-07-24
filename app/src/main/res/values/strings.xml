@@ -12,4 +12,7 @@
     <string name="tile_6">NetSwitcher 6</string>
     <string name="tile_7">NetSwitcher 7</string>
     <string name="tile_8">NetSwitcher 8</string>
+
+    <string name="tile_panel">NetSwitcher: панель</string>
+    <string name="panel_title">Быстрое переключение</string>
 </resources>

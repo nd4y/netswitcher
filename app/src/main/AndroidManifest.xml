@@ -48,6 +48,16 @@
             android:taskAffinity=""
             android:theme="@style/Theme.NetSwitcher.Transparent" />
 
+        <!-- Pop-up panel opened by the panel Quick Settings tile. Not exported: it is
+             only ever launched from within the app / its own tile. -->
+        <activity
+            android:name=".ui.PanelActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NetSwitcher.Panel" />
+
         <!-- Home screen widget -->
         <receiver
             android:name=".widget.NetSwitcherWidgetReceiver"
@@ -157,6 +167,19 @@
             </intent-filter>
             <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="false" />
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+        </service>
+
+        <!-- Panel tile: opens the pop-up switcher instead of running a single action. -->
+        <service
+            android:name=".tile.PanelTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile"
+            android:label="@string/tile_panel"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="false" />
         </service>
 
         <!-- Shizuku -->

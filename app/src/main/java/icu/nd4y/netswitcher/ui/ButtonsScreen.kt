@@ -152,6 +152,41 @@ fun ButtonsScreen(
             }
         }
 
+        Section("Плитка-панель") {
+            Text(
+                text = "Отдельная плитка открывает всплывающую панель со всеми " +
+                    "переключателями и Wi-Fi-сетями главного экрана — как системное меню " +
+                    "«Интернет», только мгновенно и без сканирования сетей.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("NetSwitcher: панель", Modifier.weight(1f))
+                TextButton(onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val manager = context.getSystemService(StatusBarManager::class.java)
+                        runCatching {
+                            manager?.requestAddTileService(
+                                android.content.ComponentName(
+                                    context,
+                                    "icu.nd4y.netswitcher.tile.PanelTile",
+                                ),
+                                context.getString(R.string.tile_panel),
+                                Icon.createWithResource(context, R.drawable.ic_tile),
+                                context.mainExecutor,
+                            ) { }
+                        }
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Добавьте плитку вручную через редактор шторки",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }) { Text("В шторку") }
+            }
+        }
+
         Spacer(Modifier.height(32.dp))
     }
 }
