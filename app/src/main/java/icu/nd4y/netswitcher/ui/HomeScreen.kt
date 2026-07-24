@@ -30,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +49,6 @@ import icu.nd4y.netswitcher.engine.NetworkStatus
 import icu.nd4y.netswitcher.engine.PrivilegeManager
 import icu.nd4y.netswitcher.engine.PrivilegeState
 import java.util.UUID
-import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -60,7 +58,6 @@ fun HomeScreen(
     onEdit: (Profile) -> Unit,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val haptics = rememberClickHaptics()
     var sharing by remember { mutableStateOf<Profile?>(null) }
 
@@ -110,9 +107,9 @@ fun HomeScreen(
                             isOn = states[profile.id] == true,
                             busy = running == profile.id,
                             modifier = Modifier.weight(1f),
-                            onClick = {
-                                scope.launch { ActionDispatcher.runNow(context, profile) }
-                            },
+                            // dispatch() runs on the application scope: leaving the tab
+                            // mid-switch must not cancel the work half-way.
+                            onClick = { ActionDispatcher.dispatch(context, profile.id, profile.name) },
                         )
                     }
                     repeat(4 - row.size) {
@@ -165,7 +162,7 @@ fun HomeScreen(
                     busy = running == profile.id,
                     isActive = states[profile.id] == true,
                     isDragging = isDragging,
-                    onClick = { scope.launch { ActionDispatcher.runNow(context, profile) } },
+                    onClick = { ActionDispatcher.dispatch(context, profile.id, profile.name) },
                     onShare = if (profile.ssid.isNotBlank()) {
                         { haptics(); sharing = profile }
                     } else null,

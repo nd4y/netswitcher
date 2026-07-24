@@ -8,9 +8,11 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import icu.nd4y.netswitcher.NetSwitcherApp
 import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.action.ActionDispatcher
 import icu.nd4y.netswitcher.action.Feedback
+import icu.nd4y.netswitcher.action.SurfaceSync
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
@@ -54,13 +56,18 @@ abstract class BaseSwitchTile(private val slot: Int) : TileService() {
                         subtitle = "Переключаю…"
                         updateTile()
                     }
-                    Feedback.announceStart(
-                        applicationContext,
-                        profile.name,
-                        ActionDispatcher.startNotification,
-                    )
-                    ActionDispatcher.runNow(applicationContext, profile, alreadyAnnounced = true)
-                    refresh()
+                    val app = applicationContext
+                    Feedback.announceStart(app, profile.name, ActionDispatcher.startNotification)
+                    // The switch itself runs on the application scope: [scope] dies in
+                    // onStopListening, so keeping the work here meant collapsing the
+                    // shade cancelled it mid-flight — a spurious "Job was cancelled"
+                    // toast and a tile stuck on "Переключаю…" until the next refresh.
+                    NetSwitcherApp.appScope.launch {
+                        ActionDispatcher.runNow(app, profile, alreadyAnnounced = true)
+                        // This tile (and its siblings) may have stopped listening while
+                        // the commands ran — ask the system to refresh them explicitly.
+                        SurfaceSync.syncTiles(app)
+                    }
                 }
             }
         }

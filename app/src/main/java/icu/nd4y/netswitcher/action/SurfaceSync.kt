@@ -16,6 +16,7 @@ import androidx.glance.appwidget.updateAll
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
+import icu.nd4y.netswitcher.tile.PanelTile
 import icu.nd4y.netswitcher.tile.tileComponent
 import icu.nd4y.netswitcher.widget.NetSwitcherWidget
 
@@ -61,6 +62,10 @@ object SurfaceSync {
         for (slot in 1..Config.TILE_COUNT) {
             val component: ComponentName = tileComponent(app, slot) ?: continue
             runCatching { TileService.requestListeningState(app, component) }
+        }
+        // The panel tile mirrors the current network in its subtitle — refresh it too.
+        runCatching {
+            TileService.requestListeningState(app, ComponentName(app, PanelTile::class.java))
         }
     }
 

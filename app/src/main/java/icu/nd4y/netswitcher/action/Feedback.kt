@@ -104,9 +104,15 @@ object Feedback {
 
     /** The operation is over: drop the notification, report the outcome as a toast. */
     fun announceResult(context: Context, result: ActionResult) {
-        val app = context.applicationContext
-        runCatching { NotificationManagerCompat.from(app).cancel(NOTIFICATION_ID) }
-        toast(app, result.message)
+        dismissStart(context)
+        toast(context.applicationContext, result.message)
+    }
+
+    /** Takes the progress notification down without announcing any outcome. */
+    fun dismissStart(context: Context) {
+        runCatching {
+            NotificationManagerCompat.from(context.applicationContext).cancel(NOTIFICATION_ID)
+        }
     }
 
     private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(

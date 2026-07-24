@@ -2,6 +2,7 @@ package icu.nd4y.netswitcher.action
 
 import android.content.Context
 import icu.nd4y.netswitcher.NetSwitcherApp
+import kotlinx.coroutines.CancellationException
 import icu.nd4y.netswitcher.data.ActionResult
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
@@ -77,6 +78,14 @@ object ActionDispatcher {
         _running.value = profile.id
         val result = try {
             SwitchEngine(app).run(profile, config.backend)
+        } catch (cancel: CancellationException) {
+            // The caller's scope died (a tile stopped listening, a screen left
+            // composition) — that is not a failure of the switch: the shell commands
+            // already sent keep working. Take the progress notification down quietly
+            // and let the cancellation propagate instead of toasting
+            // "Ошибка: Job was cancelled".
+            Feedback.dismissStart(app)
+            throw cancel
         } catch (error: Throwable) {
             ActionResult(false, "Ошибка: ${error.message}", listOf(error.stackTraceToString()))
         } finally {
