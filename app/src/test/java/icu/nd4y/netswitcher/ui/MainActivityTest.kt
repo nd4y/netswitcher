@@ -3,8 +3,11 @@ package icu.nd4y.netswitcher.ui
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -42,5 +45,15 @@ class MainActivityTest {
 
         tab("Сети").performClick()
         compose.onNodeWithText("Остальные профили").assertExists()
+    }
+
+    @Test
+    fun `deleting a profile offers an undo snackbar`() {
+        // Open the editor for the first network card, then delete it.
+        compose.onAllNodesWithContentDescription("Изменить").onFirst().performClick()
+        compose.onNodeWithText("Удалить").performScrollTo().performClick()
+
+        // The undo affordance appears.
+        compose.onNodeWithText("Отменить").assertExists()
     }
 }

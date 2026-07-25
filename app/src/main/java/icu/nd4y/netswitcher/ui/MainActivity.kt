@@ -17,6 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +39,7 @@ import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
 /** Bumped whenever Shizuku's binder or permission state changes, to re-render status. */
@@ -92,6 +97,7 @@ private fun AppRoot() {
 
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<Profile?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val permissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -115,6 +121,7 @@ private fun AppRoot() {
     val haptics = rememberClickHaptics()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -170,6 +177,9 @@ private fun AppRoot() {
             },
             onDelete = if (exists) {
                 {
+                    // Snapshot the whole config so "Отменить" restores the profile and
+                    // every button binding it had, exactly as before the delete.
+                    val before = config
                     controller.edit { current ->
                         current.copy(
                             profiles = current.profiles.filterNot { it.id == profile.id },
@@ -181,6 +191,17 @@ private fun AppRoot() {
                         )
                     }
                     editing = null
+                    scope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            message = "Профиль «${profile.name}» удалён",
+                            actionLabel = "Отменить",
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            controller.edit { before }
+                        }
+                    }
                 }
             } else null,
         )
