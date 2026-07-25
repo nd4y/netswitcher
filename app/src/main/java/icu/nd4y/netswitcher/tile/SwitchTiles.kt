@@ -16,6 +16,7 @@ import icu.nd4y.netswitcher.action.SurfaceSync
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
+import icu.nd4y.netswitcher.data.ProfileKind
 import icu.nd4y.netswitcher.engine.NetworkStatus
 import icu.nd4y.netswitcher.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -91,12 +92,26 @@ abstract class BaseSwitchTile(private val slot: Int) : TileService() {
             tile.label = profile.name
             tile.subtitle = profile.subtitle
             tile.icon = Icon.createWithResource(this, profile.iconRes)
-            tile.state =
-                if (NetworkStatus.quickActive(applicationContext, profile)) Tile.STATE_ACTIVE
-                else Tile.STATE_INACTIVE
+            tile.state = if (isActive(profile)) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         }
         tile.updateTile()
     }
+
+    /**
+     * [NetworkStatus.quickActive] compares against WifiInfo's SSID, which is
+     * location-gated and always "<unknown ssid>" inside a TileService — Wi-Fi tiles
+     * never lit up. Resolve the SSID through the shared shell-backed cache instead.
+     */
+    private suspend fun isActive(profile: Profile): Boolean =
+        if (profile.kind == ProfileKind.WIFI) {
+            NetworkStatus.isWifiOn(applicationContext) &&
+                NetworkStatus.currentSsidShared(
+                    applicationContext,
+                    ConfigRepository.get(applicationContext).current().backend,
+                ) == profile.ssid
+        } else {
+            NetworkStatus.quickActive(applicationContext, profile)
+        }
 
     private fun openApp() {
         val intent = Intent(this, MainActivity::class.java)

@@ -97,17 +97,27 @@ class PanelTile : TileService() {
         tile.icon = Icon.createWithResource(this, R.drawable.ic_tile)
 
         if (NetworkStatus.isWifiOn(applicationContext)) {
-            val ssid = NetworkStatus.currentSsidSync(applicationContext)
-            val profile = config.profiles.firstOrNull {
-                it.kind == ProfileKind.WIFI && it.ssid == ssid
-            }
-            tile.subtitle = profile?.name ?: ssid ?: "Wi-Fi вкл."
+            // Show something immediately; the SSID follows once the shell answers —
+            // WifiInfo can't provide it here, see [NetworkStatus.currentSsidShared].
+            tile.subtitle = "Wi-Fi вкл."
             tile.state = Tile.STATE_ACTIVE
+            tile.updateTile()
+
+            val ssid = NetworkStatus.currentSsidShared(applicationContext, config.backend)
+            val current = qsTile ?: return
+            if (ssid != null) {
+                val profile = config.profiles.firstOrNull {
+                    it.kind == ProfileKind.WIFI && it.ssid == ssid
+                }
+                current.subtitle = profile?.name ?: ssid
+                current.state = Tile.STATE_ACTIVE
+                current.updateTile()
+            }
         } else {
             tile.subtitle = "Wi-Fi выключен"
             tile.state = Tile.STATE_INACTIVE
+            tile.updateTile()
         }
-        tile.updateTile()
     }
 
     private fun openPanelActivity() {

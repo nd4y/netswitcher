@@ -4,10 +4,14 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.os.SystemClock
 import android.provider.Settings
 import android.telephony.TelephonyManager
+import icu.nd4y.netswitcher.data.Backend
 import icu.nd4y.netswitcher.data.Profile
 import icu.nd4y.netswitcher.data.ProfileKind
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class NetworkSnapshot(
     val transport: String,
@@ -136,6 +140,26 @@ object NetworkStatus {
         context.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid
             ?.trim('"')?.takeIf { it.isNotBlank() && it != "<unknown ssid>" }
     }.getOrNull()
+
+    private val ssidMutex = Mutex()
+    private var ssidCache: Pair<Long, String?>? = null
+
+    /**
+     * SSID for surfaces where WifiInfo is useless — TileServices are bound by SystemUI
+     * and never count as a foreground app, so the location-gated WifiInfo path always
+     * reads "<unknown ssid>" there. Goes through the privileged shell instead, with a
+     * short-lived cache shared across callers: when the shade opens, all nine tiles
+     * refresh at once, and only the first pays for the `cmd wifi status` exec.
+     */
+    suspend fun currentSsidShared(context: Context, backend: Backend): String? =
+        ssidMutex.withLock {
+            val now = SystemClock.elapsedRealtime()
+            ssidCache?.let { (at, ssid) -> if (now - at < 2_000) return ssid }
+            val shell = runCatching { PrivilegeManager.resolve(backend).shell }.getOrNull()
+            val ssid = currentSsid(context, shell)
+            ssidCache = now to ssid
+            ssid
+        }
 
     suspend fun currentSsid(context: Context, shell: PrivilegedShell?): String? {
         if (shell != null) {

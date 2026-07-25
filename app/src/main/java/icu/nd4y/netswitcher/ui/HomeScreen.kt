@@ -1,5 +1,13 @@
 package icu.nd4y.netswitcher.ui
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkRequest
+import android.net.wifi.WifiManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -38,7 +47,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.action.ActionDispatcher
 import icu.nd4y.netswitcher.data.Config
@@ -76,6 +90,46 @@ fun HomeScreen(
         val state = PrivilegeManager.resolve(config.backend)
         privilege = state
         snapshot = NetworkStatus.read(context, state.shell)
+    }
+
+    // Auto-refresh: react to connectivity events the instant they happen…
+    DisposableEffect(Unit) {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { refreshKey++ }
+            override fun onLost(network: Network) { refreshKey++ }
+        }
+        runCatching {
+            connectivity?.registerNetworkCallback(NetworkRequest.Builder().build(), callback)
+        }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(receiverContext: Context?, intent: Intent?) { refreshKey++ }
+        }
+        val filter = IntentFilter().apply {
+            addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
+            @Suppress("DEPRECATION")
+            addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+        }
+        ContextCompat.registerReceiver(
+            context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose {
+            runCatching { connectivity?.unregisterNetworkCallback(callback) }
+            runCatching { context.unregisterReceiver(receiver) }
+        }
+    }
+
+    // …and a slow poll while the screen is actually visible, catching changes with no
+    // broadcast of their own (mobile-data toggle, SIM switch, privilege loss).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(Unit) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                delay(5_000)
+                refreshKey++
+            }
+        }
     }
 
     val shown = config.homeProfiles()
