@@ -8,20 +8,37 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarData
+import androidx.compose.material3.SnackbarDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,8 +46,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,6 +58,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import icu.nd4y.netswitcher.data.Config
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.Profile
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
@@ -121,7 +142,9 @@ private fun AppRoot() {
     val haptics = rememberClickHaptics()
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data -> CountdownSnackbar(data) }
+        },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -192,11 +215,13 @@ private fun AppRoot() {
                     }
                     editing = null
                     scope.launch {
+                        // Indefinite: CountdownSnackbar drives its own timer so the
+                        // progress bar and the auto-dismiss stay in lockstep.
                         val result = snackbarHostState.showSnackbar(
                             message = "Профиль «${profile.name}» удалён",
                             actionLabel = "Отменить",
                             withDismissAction = true,
-                            duration = SnackbarDuration.Short,
+                            duration = SnackbarDuration.Indefinite,
                         )
                         if (result == SnackbarResult.ActionPerformed) {
                             controller.edit { before }
@@ -205,5 +230,67 @@ private fun AppRoot() {
                 }
             } else null,
         )
+    }
+}
+
+/**
+ * A Material 3 snackbar with a countdown bar along its bottom edge, following the newer
+ * Google guidance for time-limited undo affordances: the shrinking line shows exactly how
+ * long "Отменить" stays available. The bar is authoritative for the visual, and a matching
+ * [delay] drives the auto-dismiss — kept as a separate effect (not chained off the frame
+ * animation) so the snackbar survives the Robolectric test clock, which auto-advances
+ * frame-based animations but not [delay].
+ */
+@Composable
+private fun CountdownSnackbar(data: SnackbarData, durationMillis: Int = 4000) {
+    val progress = remember(data) { Animatable(1f) }
+    LaunchedEffect(data) {
+        progress.animateTo(0f, animationSpec = tween(durationMillis, easing = LinearEasing))
+    }
+    LaunchedEffect(data) {
+        delay(durationMillis.toLong())
+        data.dismiss()
+    }
+
+    Surface(
+        modifier = Modifier.padding(12.dp).fillMaxWidth(),
+        shape = RoundedCornerShape(4.dp),
+        color = SnackbarDefaults.color,
+        contentColor = SnackbarDefaults.contentColor,
+        shadowElevation = 6.dp,
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = data.visuals.message,
+                    modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                data.visuals.actionLabel?.let { label ->
+                    TextButton(
+                        onClick = { data.performAction() },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = SnackbarDefaults.actionColor,
+                        ),
+                    ) { Text(label) }
+                }
+                if (data.visuals.withDismissAction) {
+                    IconButton(onClick = { data.dismiss() }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Закрыть")
+                    }
+                }
+            }
+            LinearProgressIndicator(
+                progress = { progress.value },
+                modifier = Modifier.fillMaxWidth().height(3.dp),
+                color = SnackbarDefaults.actionColor,
+                trackColor = Color.Transparent,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
+            )
+        }
     }
 }

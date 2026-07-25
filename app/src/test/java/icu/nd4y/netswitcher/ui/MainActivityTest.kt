@@ -48,12 +48,24 @@ class MainActivityTest {
     }
 
     @Test
-    fun `deleting a profile offers an undo snackbar`() {
-        // Open the editor for the first network card, then delete it.
+    fun `deleting a profile offers an undo snackbar that counts down and dismisses`() {
+        // Open the editor for the first network card, then delete it. The snackbar's
+        // countdown runs on the virtual test clock, so stop auto-advance first —
+        // otherwise waitForIdle fast-forwards through the 4s window and the snackbar
+        // is gone before it can be observed.
         compose.onAllNodesWithContentDescription("Изменить").onFirst().performClick()
-        compose.onNodeWithText("Удалить").performScrollTo().performClick()
+        // Scroll while the clock still auto-advances — performScrollTo animates and
+        // would deadlock on a frozen frame clock. Freeze only for the click itself.
+        compose.onNodeWithText("Удалить").performScrollTo()
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText("Удалить").performClick()
 
-        // The undo affordance appears.
+        // The undo affordance appears and stays up mid-countdown.
+        compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("Отменить").assertExists()
+
+        // Once the countdown elapses the snackbar dismisses itself.
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onNodeWithText("Отменить").assertDoesNotExist()
     }
 }
