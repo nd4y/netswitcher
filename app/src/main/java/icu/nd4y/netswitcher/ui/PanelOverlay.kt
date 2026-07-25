@@ -35,6 +35,12 @@ object PanelOverlayController {
         val windowManager = context.getSystemService(WindowManager::class.java) ?: return
         host = OverlayHost(context, windowManager) { host = null }.also { it.attach() }
     }
+
+    /** Tears the overlay down immediately (used when falling back to the activity path). */
+    fun dismiss() {
+        host?.detachNow()
+        host = null
+    }
 }
 
 /**
@@ -115,4 +121,7 @@ private class OverlayHost(
         runCatching { windowManager.removeView(root) }
         onDetached()
     }
+
+    /** Immediate teardown from any caller (e.g. the controller's [PanelOverlayController.dismiss]). */
+    fun detachNow() = detach()
 }

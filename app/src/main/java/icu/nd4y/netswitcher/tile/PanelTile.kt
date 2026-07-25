@@ -4,13 +4,17 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import icu.nd4y.netswitcher.NetSwitcherApp
 import icu.nd4y.netswitcher.R
 import icu.nd4y.netswitcher.data.ConfigRepository
 import icu.nd4y.netswitcher.data.ProfileKind
 import icu.nd4y.netswitcher.engine.NetworkStatus
+import icu.nd4y.netswitcher.engine.PrivilegeManager
 import icu.nd4y.netswitcher.ui.PanelActivity
 import icu.nd4y.netswitcher.ui.PanelOverlayController
 import kotlinx.coroutines.CoroutineScope
@@ -27,9 +31,11 @@ import kotlinx.coroutines.launch
  * currently active in its label, and dims to [Tile.STATE_INACTIVE] when Wi-Fi is off.
  *
  * With the "draw over other apps" permission granted, the panel shows as an overlay
- * above the still-open shade, exactly like the system tile — see [PanelOverlayController].
- * Without it, Android gives third-party tiles no way to show UI without first collapsing
- * the shade, so this falls back to launching [PanelActivity].
+ * (see [PanelOverlayController]). A third-party overlay window sits *below* the
+ * notification shade in z-order, so we also collapse the shade via the privileged shell
+ * — the overlay then sits over the wallpaper/app, the closest a non-system app gets to
+ * the system "Internet" panel. Without the overlay permission (or a shell to collapse
+ * with) it falls back to launching [PanelActivity], which collapses the shade itself.
  */
 class PanelTile : TileService() {
 
@@ -50,12 +56,34 @@ class PanelTile : TileService() {
         super.onClick()
         val work = Runnable {
             if (Settings.canDrawOverlays(this)) {
-                PanelOverlayController.show(applicationContext)
+                showOverlayPanel()
             } else {
                 openPanelActivity()
             }
         }
         if (isSecure && isLocked) unlockAndRun(work) else work.run()
+    }
+
+    private fun showOverlayPanel() {
+        val app = applicationContext
+        PanelOverlayController.show(app)
+        // A third-party overlay renders below the shade, so it would be hidden behind it.
+        // Collapse the shade through the privileged shell; the overlay then sits on top.
+        NetSwitcherApp.appScope.launch {
+            val backend = ConfigRepository.get(app).current().backend
+            val shell = PrivilegeManager.resolve(backend).shell
+            if (shell != null) {
+                shell.exec("cmd statusbar collapse")
+            } else {
+                // No shell to collapse with — fall back to the activity path, which
+                // collapses the shade itself. WindowManager + startActivityAndCollapse
+                // must run on the main thread.
+                Handler(Looper.getMainLooper()).post {
+                    PanelOverlayController.dismiss()
+                    openPanelActivity()
+                }
+            }
+        }
     }
 
     private suspend fun refresh() {
