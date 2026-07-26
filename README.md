@@ -1,239 +1,252 @@
 # NetSwitcher
 
-Быстрое переключение между домашними Wi-Fi-сетями, мобильной сетью (с выбором SIM)
-и Ethernet — из приложения, с ярлыка, с виджета и из шторки быстрых настроек.
+🇬🇧 **English** | [🇷🇺 Русский](README.ru.md)
 
-Собрано под Pixel (Android 12+, проверялось на Android 17).
+Quick switching between home Wi-Fi networks, mobile data (with SIM selection), and
+Ethernet — from the app itself, a home-screen shortcut, a widget, or the Quick Settings
+shade.
 
-## Установка
+Built for Pixel (Android 12+, tested on Android 17).
 
-[![Последний релиз](https://img.shields.io/github/v/release/nd4y/netswitcher?label=релиз&sort=semver)](https://github.com/nd4y/netswitcher/releases/latest)
+## Installation
 
-[<img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Установить через Obtainium" height="54">](obtainium://add/https://github.com/nd4y/netswitcher)
+[![Latest release](https://img.shields.io/github/v/release/nd4y/netswitcher?label=release&sort=semver)](https://github.com/nd4y/netswitcher/releases/latest)
 
-Кнопка открывает [Obtainium](https://github.com/ImranR98/Obtainium) и добавляет
-приложение с отслеживанием GitHub-релизов — ссылка не привязана к номеру версии и
-всегда ставит последний релиз (сейчас **v1.3**), а дальше подхватывает обновления сама.
-Если ссылка не сработала, в Obtainium можно добавить приложение вручную, вставив адрес
-репозитория: `https://github.com/nd4y/netswitcher`.
+[<img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Install via Obtainium" height="54">](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/nd4y/netswitcher)
 
-Либо просто скачать APK со [страницы релизов](https://github.com/nd4y/netswitcher/releases).
+The button opens [Obtainium](https://github.com/ImranR98/Obtainium) and adds the app
+with GitHub-release tracking — the link isn't pinned to a version number, it always
+grabs the latest release and then picks up updates on its own. (GitHub strips
+`obtainium://` links out of rendered Markdown, so the button actually goes through
+Obtainium's own https redirect page, which immediately hands off to the app.) If the
+button doesn't do anything, add the app manually in Obtainium by pasting the repository
+URL: `https://github.com/nd4y/netswitcher`.
 
-**Что нового в v1.10:** вкладки «Сети» и «Профили» объединены — редактирование,
-шеринг и добавление сетей теперь прямо на карточках вкладки «Сети»; исправлен краш
-плитки-панели в режиме поверх шторки; виджет корректно сжимается (компактные ячейки)
-и показывает до 10 строк; пароль Wi-Fi больше не попадает в журнал команд.
-Из прошлых версий: плитка-панель в шторке (v1.1), «поделиться сетью» QR/NFC (v1.2),
-режим метки HCE (v1.3), панель поверх шторки без сворачивания (v1.6). Подробности —
-в разделах [«Поделиться сетью»](#поделиться-сетью) и [«Панель в шторке»](#панель-в-шторке).
+Or just download the APK from the [releases page](https://github.com/nd4y/netswitcher/releases).
 
-## Зачем нужен Shizuku
+**What's new in v1.10:** the "Networks" and "Profiles" tabs have been merged — editing,
+sharing, and adding networks now happens right on the "Networks" tab's cards; fixed a
+crash in the panel tile's over-the-shade mode; the widget now shrinks correctly (compact
+cells) and shows up to 10 rows; the Wi-Fi password no longer ends up in the command log.
+Earlier: the panel tile in the shade (v1.1), "share network" via QR/NFC (v1.2), NFC
+tag-emulation mode (v1.3), the panel over the (non-collapsing) shade (v1.6). Details are
+in the [Share a network](#share-a-network) and [Panel in the shade](#panel-in-the-shade)
+sections.
 
-Начиная с Android 10 обычное приложение **не может** ни включить/выключить Wi-Fi,
-ни подключиться к конкретной сохранённой сети:
+## Why Shizuku
 
-* `WifiManager.setWifiEnabled()` и `enableNetwork()` для сторонних приложений — no-op;
-* `WifiNetworkSpecifier` подключает сеть только к самому приложению, а не к устройству;
-* `WifiNetworkSuggestion` лишь предлагает сеть системе, момент подключения выбирает она.
+Starting with Android 10, a regular app **cannot** turn Wi-Fi on/off or connect to a
+specific saved network:
 
-Рабочий способ без прошивки и без root — **[Shizuku](https://shizuku.rikka.app/)**:
-он выдаёт приложению доступ к shell-привилегиям adb, и NetSwitcher выполняет ровно те
-команды, которые вы бы вводили через `adb shell`:
+* `WifiManager.setWifiEnabled()` and `enableNetwork()` are no-ops for third-party apps;
+* `WifiNetworkSpecifier` binds the network to the requesting app only, not to the device;
+* `WifiNetworkSuggestion` merely suggests a network to the system — the system decides
+  if and when to connect.
 
-| Действие | Команда |
+The working approach without flashing anything or rooting is
+**[Shizuku](https://shizuku.rikka.app/)**: it grants the app access to adb's shell
+privileges, and NetSwitcher runs exactly the commands you'd type over `adb shell`:
+
+| Action | Command |
 |---|---|
-| Включить/выключить Wi-Fi | `cmd wifi set-wifi-enabled enabled\|disabled` |
-| Подключиться к сети | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>]` |
-| Только включить радио | `cmd wifi set-wifi-enabled enabled` — сеть выбирает автоподключение |
-| Авиарежим | `cmd connectivity airplane-mode enable\|disable` → `settings put global airplane_mode_on` + broadcast |
-| Мобильные данные | `svc data enable\|disable` |
-| SIM по умолчанию для данных | `ISub.setDefaultDataSubId()` → `cmd phone set-default-data-sub` → `settings put global multi_sim_data_call` |
-| Поднять Ethernet | `ip link set eth0 up` (только с root) |
+| Turn Wi-Fi on/off | `cmd wifi set-wifi-enabled enabled\|disabled` |
+| Connect to a network | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>]` |
+| Turn the radio on only | `cmd wifi set-wifi-enabled enabled` — the network is picked by auto-connect |
+| Airplane mode | `cmd connectivity airplane-mode enable\|disable` → `settings put global airplane_mode_on` + broadcast |
+| Mobile data | `svc data enable\|disable` |
+| Default data SIM | `ISub.setDefaultDataSubId()` → `cmd phone set-default-data-sub` → `settings put global multi_sim_data_call` |
+| Bring up Ethernet | `ip link set eth0 up` (root only) |
 
-Поддерживаются три источника привилегий, переключаются в «Настройках»:
+Three privilege sources are supported, switchable in Settings:
 
-* **Shizuku** — основной, без root;
-* **Root** (`su -c`) — если телефон рутован;
-* **Нет** — деградация: приложение регистрирует Wi-Fi-suggestion и открывает системную
-  панель сети, дальше вручную.
+* **Shizuku** — the primary one, no root needed;
+* **Root** (`su -c`) — if the phone is rooted;
+* **None** — degraded mode: the app registers a Wi-Fi suggestion and opens the system
+  network panel, then it's manual from there.
 
-### Настройка Shizuku
+### Setting up Shizuku
 
-1. Установить Shizuku из Google Play или с [shizuku.rikka.app](https://shizuku.rikka.app/).
-2. Включить «Отладка по Wi-Fi» в параметрах разработчика и запустить Shizuku
-   (на Android 11+ работает без компьютера; после перезагрузки телефона Shizuku
-   нужно запускать заново).
-3. Открыть NetSwitcher → «Настройки» → «Выдать разрешение».
+1. Install Shizuku from Google Play or from [shizuku.rikka.app](https://shizuku.rikka.app/).
+2. Enable "Wireless debugging" in Developer options and start Shizuku (works without a
+   computer on Android 11+; after a phone reboot, Shizuku needs to be started again).
+3. Open NetSwitcher → Settings → "Grant permission".
 
-## Поделиться сетью
+## Share a network
 
-На вкладке «Сети» у каждой Wi-Fi-карточки есть кнопка «Поделиться» — тремя способами:
+On the "Networks" tab, every Wi-Fi card has a "Share" button, offering three ways to do it:
 
-* **QR-код** — стандартный формат `WIFI:T:WPA;S:<ssid>;P:<pass>;;`, который читает
-  штатная камера Android и iOS и сразу предлагает подключиться. Спецсимволы в SSID и
-  пароле экранируются по правилам формата.
-* **NFC-метка** — запись учётных данных на перезаписываемую метку в формате
-  `application/vnd.wfa.wsc` (Wi-Fi Simple Configuration) — тот же payload, что пишет сам
-  Android при «поделиться Wi-Fi по NFC». Любой телефон, поднёсший метку, получает
-  предложение подключиться.
-* **Режим метки (эмуляция NFC)** — телефон сам изображает NFC-метку через Host Card
-  Emulation: реализует NFC Forum Type 4 Tag (AID `D2760000850101`) и отдаёт тот же
-  Wi-Fi-NDEF читающему устройству. Заменяет удалённый из Android 10 Android Beam для
-  сценария «телефон→телефон». Капризнее остальных способов: нужен включённый и
-  разблокированный экран передающего телефона, NFC на обоих, и результат зависит от
-  прошивки (надёжнее всего Pixel↔Pixel) — поэтому основным способом остаётся QR.
-* **Системное меню «Поделиться»** — отправка текстом (SSID + пароль + `WIFI:`-строка)
-  или картинкой с QR-кодом через обычный share sheet.
+* **QR code** — the standard `WIFI:T:WPA;S:<ssid>;P:<pass>;;` format, read by the stock
+  camera app on Android and iOS, which immediately offers to connect. Special characters
+  in the SSID and password are escaped per the format's rules.
+* **NFC tag** — writes the credentials to a rewritable tag using the
+  `application/vnd.wfa.wsc` format (Wi-Fi Simple Configuration) — the same payload
+  Android itself writes for "share Wi-Fi via NFC." Any phone tapped against the tag gets
+  a prompt to connect.
+* **Tag emulation (NFC HCE)** — the phone itself acts as an NFC tag via Host Card
+  Emulation: it implements an NFC Forum Type 4 Tag (AID `D2760000850101`) and hands the
+  same Wi-Fi NDEF record to the reading device. This replaces Android Beam (removed in
+  Android 10) for the phone-to-phone case. It's fussier than the other methods — the
+  sending phone's screen has to be on and unlocked, both devices need NFC, and results
+  vary by firmware (most reliable Pixel↔Pixel) — which is why QR remains the primary
+  method.
+* **System "Share" menu** — send as text (SSID + password + a `WIFI:` string) or as a
+  QR-code image through the regular share sheet.
 
-QR строится встроенно (ZXing core), картинка отдаётся через `FileProvider`. Нужны
-разрешение `NFC` (объявлено в манифесте) и, для записи, включённый NFC и перезаписываемая
-метка.
+The QR code is generated in-app (ZXing core), the image is served via `FileProvider`.
+Requires the `NFC` permission (declared in the manifest) and, for writing, NFC turned on
+plus a rewritable tag.
 
-## Пароли Wi-Fi
+## Wi-Fi passwords
 
-`cmd wifi connect-network` не умеет выбирать уже сохранённую сеть — он добавляет сеть
-заново, поэтому для WPA2/WPA3 в профиле нужно указать пароль. Пароли лежат в приватном
-хранилище приложения (DataStore), наружу не отправляются.
+`cmd wifi connect-network` can't select an already-saved network — it adds the network
+anew every time, so for WPA2/WPA3 the profile needs the password on file. Passwords
+live in the app's private storage (DataStore) and are never sent anywhere.
 
-## Кнопки
+## Buttons
 
-Четыре поверхности, все настраиваются на вкладке «Кнопки»:
+Five surfaces, all configurable on the "Buttons" tab:
 
-1. **В приложении** — вкладка «Сети», кнопка на каждый профиль.
-2. **Удержание ярлыка приложения** — динамические ярлыки; лаунчер Pixel показывает
-   4–5 верхних, порядок задаётся стрелками.
-3. **Виджет** — Glance-виджет, сетка кнопок, число колонок настраивается.
-4. **Шторка / центр управления** — восемь плиток `NetSwitcher 1…8`; каждой назначается
-   профиль, кнопка «В шторку» вызывает системный диалог добавления (Android 13+).
-5. **Плитка-панель** — отдельная плитка `NetSwitcher: панель` открывает всплывающее
-   меню со всеми переключателями и Wi-Fi-сетями главного экрана (см. ниже).
+1. **In the app** — the "Networks" tab, a button for every profile.
+2. **App shortcut long-press** — dynamic shortcuts; the Pixel launcher shows the top
+   4–5, ordered with the arrows.
+3. **Widget** — a Glance widget, a grid of buttons, column count is configurable.
+4. **Shade / Quick Settings** — eight `NetSwitcher 1…8` tiles; each is assigned a
+   profile, and the "Add to shade" button triggers the system's add-tile dialog
+   (Android 13+).
+5. **Panel tile** — a separate `NetSwitcher: panel` tile opens a popup menu with all the
+   toggles and Wi-Fi networks from the home screen (see below).
 
-## Панель в шторке
+## Panel in the shade
 
-Системная кнопка «Интернет» открывает меню с тумблерами Wi-Fi/мобильной сети, но
-работает медленно и показывает только «обнаруженные сети» — каждый раз запускается
-скан. У NetSwitcher есть своя плитка `NetSwitcher: панель`: нажатие сворачивает шторку
-и мгновенно поднимает всплывающую панель с тем же набором, что на главном экране —
-переключатели сверху, Wi-Fi-сети под ними. Ничего не сканируется, рисуется готовый
-список ваших профилей, поэтому панель появляется без задержки.
+The system "Internet" tile opens a menu with Wi-Fi/mobile-network toggles, but it's slow
+and only shows "discovered networks" — it kicks off a scan every time. NetSwitcher has
+its own `NetSwitcher: panel` tile: tapping it collapses the shade and instantly raises a
+popup panel with the same set as the home screen — toggles on top, Wi-Fi networks below.
+Nothing gets scanned; it just draws the ready-made list of your profiles, so the panel
+appears with no delay.
 
-Сама плитка тоже живая и устроена как системная «Интернет»: заголовок постоянный
-(«NetSwitcher»), а текущая сеть показывается в подзаголовке — имя профиля, если SSID
-совпал с настроенным, иначе сам SSID. Пока Wi-Fi включён, плитка подсвечена; выключен —
-гаснет (`STATE_INACTIVE`), как обычная неактивная плитка.
+The tile itself is live too, and mirrors the system "Internet" tile: the title stays
+constant ("NetSwitcher"), while the current network shows up in the subtitle — the
+profile's name if its SSID matches a configured one, otherwise the raw SSID. While Wi-Fi
+is on, the tile stays lit; when it's off, it dims (`STATE_INACTIVE`) like a regular
+inactive tile.
 
-**Без сворачивания шторки.** По умолчанию сторонняя плитка обязана свернуть шторку
-перед показом любого UI — так требует Android. Системная плитка «Интернет» этого
-избегает, потому что рисует свою панель не отдельным окном, а прямо внутри процесса
-системного интерфейса — сторонним приложениям туда доступа нет. Ближайший легальный
-обходной путь — показать панель как оверлей (`TYPE_APPLICATION_OVERLAY`) поверх всех
-окон, включая саму шторку. «Настройки» → «Панель без сворачивания шторки» → «Выдать
-разрешение» (`SYSTEM_ALERT_WINDOW`, «Отображение поверх других окон») — после этого
-панель выезжает прямо поверх открытой шторки, как на скриншотах системной «Интернет»,
-и шторка не закрывается. Без разрешения ничего не ломается — просто прежнее поведение:
-шторка сворачивается, панель открывается следом.
+**Without collapsing the shade.** By default, Android requires a third-party tile to
+collapse the shade before showing any UI. The system "Internet" tile sidesteps this
+because it draws its panel not as a separate window but right inside the System UI
+process — third-party apps have no access there. The closest legal workaround is showing
+the panel as an overlay (`TYPE_APPLICATION_OVERLAY`) on top of every window, including
+the shade itself. Settings → "Panel without collapsing the shade" → "Grant permission"
+(`SYSTEM_ALERT_WINDOW`, "Display over other apps") — after that the panel slides right
+over the open shade, just like screenshots of the system "Internet" tile, and the shade
+doesn't close. Without the permission nothing breaks — it just falls back to the old
+behavior: the shade collapses, then the panel opens.
 
-Нажатие на элемент запускает действие через тот же механизм, что виджет и ярлыки
-(работа идёт в фоне и переживает закрытие панели, старт подтверждается уведомлением).
-Панель закрывается тапом мимо карточки, крестиком или кнопкой «Назад» — во всех трёх
-случаях карточка плавно уезжает обратно вниз, а не пропадает рывком.
+Tapping an item triggers the action through the same mechanism as the widget and
+shortcuts (the work runs in the background and survives the panel closing; the start is
+confirmed with a notification). The panel closes on a tap outside the card, the close
+button, or the Back button — in all three cases the card smoothly slides back down
+instead of vanishing abruptly.
 
-Анимация выезда/закрытия — своя (Compose), системная анимация окна активности для этого
-экрана отключена: на части прошивок (например MIUI) она заметно тяжелее и, накладываясь
-на нашу, выглядела дёргано.
+The slide-in/slide-out animation is custom (Compose); the system's activity-window
+animation is disabled for this screen — on some firmware (MIUI, for instance) it's
+noticeably heavier, and layered on top of ours it looked janky.
 
-Технически это не «встроенное» в шторку меню — детальные панели плиток остаются
-приватным API системного интерфейса, сторонним плиткам недоступным. Панель поднимается
-отдельным полупрозрачным окном поверх экрана: визуально почти то же, но не внутри самой
-шторки.
+Technically this isn't a menu "built into" the shade — detailed tile panels remain a
+private System UI API that's off-limits to third-party tiles. The panel is raised as a
+separate translucent window on top of the screen: visually almost the same, but not
+actually inside the shade itself.
 
-Состав панели — это набор главного экрана (`home` в конфиге): что показать и в каком
-порядке, настраивается на вкладке «Кнопки» → «Главный экран приложения» и в YAML.
-Добавить саму плитку в шторку: «Кнопки» → «Плитка-панель» → «В шторку» (Android 13+),
-либо вручную через редактор плиток.
+The panel's contents are the home-screen set (`home` in the config): what to show and in
+what order is configured on the "Buttons" tab → "App home screen," and in YAML. To add
+the tile itself to the shade: "Buttons" → "Panel tile" → "Add to shade" (Android 13+),
+or manually through the tile editor.
 
-## Отклик на нажатие
+## Feedback on tap
 
-Нажатие подтверждается сразу, ещё до того как отработают привилегированные команды.
-Это важно для виджета, ярлыка и шторки: там процесс приложения может быть выгружен,
-и без явного отклика непонятно, сработало ли нажатие вообще.
+A tap is acknowledged immediately, before the privileged commands even run. This matters
+for the widget, the shortcut, and the shade: the app's process may have been unloaded
+there, and without an explicit response there's no way to tell whether the tap did
+anything at all.
 
-1. Короткая вибрация — раньше всего остального.
-2. Уведомление «Переключаю: …» с индикатором прогресса. В «Настройках» выбирается,
-   висеть ему тихо **в шторке** или выезжать **всплывающим баннером**. Оба варианта
-   всегда без звука и вибрации: каналы создаются с `setSound(null, null)` и
-   `enableVibration(false)`.
-3. На Android 16+ это же уведомление дополнительно поднимается в **чип статус-бара**
-   (`NotificationCompat.ProgressStyle` + `setRequestPromotedOngoing`), а
-   `setShortCriticalText()` кладёт в чип имя сети.
-4. По завершении уведомление закрывается само, а результат приходит всплывающим
-   сообщением.
+1. A short vibration — before anything else.
+2. A "Switching: …" notification with a progress indicator. Settings lets you choose
+   whether it sits quietly **in the shade** or slides out as a **heads-up banner**.
+   Either way it's always silent and vibration-free: the channels are created with
+   `setSound(null, null)` and `enableVibration(false)`.
+3. On Android 16+, the same notification is additionally promoted into a **status bar
+   chip** (`NotificationCompat.ProgressStyle` + `setRequestPromotedOngoing`), with
+   `setShortCriticalText()` putting the network's name in the chip.
+4. On completion the notification closes itself, and the result arrives as a pop-up
+   message.
 
-Кнопка виджета на время работы подсвечивается и пишет «переключаю…», плитка меняет
-подпись — отклик появляется прямо там, где было нажатие. Внутри приложения элементы
-управления дают лёгкий тактильный отклик.
+The widget button lights up and shows "switching…" for the duration of the work, and the
+tile's subtitle changes — the feedback shows up right where the tap happened. Inside the
+app, controls give a light haptic response.
 
-Нужны разрешения `POST_NOTIFICATIONS` (запрашивается при первом запуске),
-`POST_PROMOTED_NOTIFICATIONS` и `VIBRATE` (объявлены в манифесте), а также
+Requires the `POST_NOTIFICATIONS` permission (requested on first launch),
+`POST_PROMOTED_NOTIFICATIONS`, and `VIBRATE` (declared in the manifest), plus
 `androidx.core` 1.17+.
 
-Отдельно при первом запуске запрашивается «Местоположение» (`ACCESS_FINE_LOCATION`):
-без него Android скрывает SSID текущей сети, и подсветка «подключено» на карточках,
-виджете и плитке-панели работать не будет. Никуда, кроме экрана, SSID не уходит.
+Separately, "Location" (`ACCESS_FINE_LOCATION`) is requested on first launch: without it,
+Android hides the current network's SSID, and the "connected" highlight on cards, the
+widget, and the panel tile won't work. The SSID never goes anywhere except the screen.
 
-## Переключатели
+## Toggles
 
-Первый ряд главного экрана — четыре тумблера: **Wi-Fi**, **LTE** (мобильные данные),
-**Ethernet** и **Авиарежим**. Каждый показывает текущее состояние («вкл.»/«выкл.»,
-подсветка) и по нажатию инвертирует его. Их же можно повесить на виджет, ярлык и плитку.
+The home screen's first row is four toggles: **Wi-Fi**, **LTE** (mobile data),
+**Ethernet**, and **Airplane mode**. Each shows its current state ("on"/"off",
+highlighted) and flips it on tap. These can also be placed on the widget, a shortcut, or
+a tile.
 
-Над переключателями — карточка с текущим состоянием: к какой сети подключены, каким
-транспортом и какие привилегии доступны.
+Above the toggles sits a status card: which network you're connected to, over which
+transport, and which privileges are available.
 
-Ниже переключателей идут **только Wi-Fi-сети**. Карточки перетаскиваются удержанием;
-на каждой — иконки «поделиться» и «изменить» (редактор с удалением), кнопка «+» в
-заголовке добавляет новую сеть. Одноразовые действия (`Wi-Fi on`, `LTE only`,
-`Ethernet only`) кнопками на главный экран не выводятся — им место на виджете, ярлыке
-или плитке; редактируются они в секции «Остальные профили» внизу той же вкладки.
-Отдельной вкладки «Профили» больше нет — всё управление профилями живёт на «Сетях».
+Below the toggles come **Wi-Fi networks only**. Cards are reordered by press-and-drag;
+each one has "share" and "edit" icons (the editor includes delete), and the "+" button
+in the header adds a new network. One-shot actions (`Wi-Fi on`, `LTE only`,
+`Ethernet only`) aren't shown as home-screen buttons — they belong on the widget, a
+shortcut, or a tile; they're edited in the "Other profiles" section at the bottom of the
+same tab. There's no separate "Profiles" tab anymore — all profile management now lives
+on "Networks."
 
-Состав главного экрана настраивается: «Кнопки» → «Главный экран приложения» — любой
-переключатель или профиль можно убрать и вернуть. Кнопка «Сбросить расположение
-кнопок» в «Настройках» возвращает главный экран, ярлыки, виджет и плитки к
-исходному виду, не трогая профили и пароли; полный сброс — очистка данных
-приложения в настройках Android.
+The home screen's contents are configurable: "Buttons" → "App home screen" — any toggle
+or profile can be removed and brought back. The "Reset button layout" button in Settings
+restores the home screen, shortcuts, widget, and tiles to their original layout without
+touching profiles or passwords; a full reset means clearing the app's data in Android's
+settings.
 
-Wi-Fi-профили конкретных сетей тоже работают как тумблеры: нажатие на сеть, к которой
-вы уже подключены, отключает от неё. Отдельной shell-команды «отсоединиться» не
-существует, поэтому это делается выключением радио — поведение отключается флажком
-«Повторное нажатие отключает от сети» в профиле.
+Wi-Fi profiles for specific networks also work as toggles: tapping a network you're
+already connected to disconnects from it. There's no dedicated "disconnect" shell
+command, so this is done by turning the radio off — this behavior can be turned off
+with the "Tapping again disconnects" flag on the profile.
 
-## Профили из коробки
+## Profiles out of the box
 
-Переключатели `Wi-Fi` / `LTE` / `Ethernet` / `Авиарежим`, сети `Home`, `Home 5G`,
-`Guest`, `IoT` (SSID-заглушки — замените своими), плюс одноразовые `LTE only`,
-`Wi-Fi on`, `Wi-Fi off`, `Ethernet only`. Пароли заполняются в редакторе профиля
-(карандаш на карточке).
+Toggles for `Wi-Fi` / `LTE` / `Ethernet` / `Airplane mode`, networks `Home`, `Home 5G`,
+`Guest`, `IoT` (placeholder SSIDs — replace with your own), plus the one-shot
+`LTE only`, `Wi-Fi on`, `Wi-Fi off`, `Ethernet only`. Passwords are filled in through the
+profile editor (the pencil icon on the card).
 
-## Конфигурация в YAML
+## YAML configuration
 
-«Настройки» → «Экспорт в файл» / «Импорт из файла». Формат человекочитаемый и
-снабжён комментариями, пример — [examples/example-config.yaml](examples/example-config.yaml).
-Импорт полностью заменяет профили и назначения кнопок; битый файл отвергается
-целиком, а не затирает конфигурацию наполовину.
+Settings → "Export to file" / "Import from file". The format is human-readable and
+commented, with an example at [examples/example-config.yaml](examples/example-config.yaml).
+Import fully replaces the profiles and button assignments; a broken file is rejected
+outright rather than half-overwriting the configuration.
 
-Списки `home` / `shortcuts` / `widget` / `tiles` задают, что показывается на главном
-экране, в ярлыках, на виджете и в плитках. Отсутствующий `home` означает «показать всё»,
-а явный `home: []` — пустой главный экран. Ссылки на несуществующие id молча
-отбрасываются, чтобы не появлялись кнопки, которые ничего не делают.
+The `home` / `shortcuts` / `widget` / `tiles` lists set what shows up on the home
+screen, in shortcuts, on the widget, and in the tiles. A missing `home` means "show
+everything," while an explicit `home: []` means an empty home screen. References to
+nonexistent ids are silently dropped, so you don't end up with buttons that do nothing.
 
-Одна ловушка: в YAML 1.1 голые `off` / `on` / `yes` / `no` читаются как булевы, поэтому
-`id` всегда пишите в кавычках. Экспорт делает это сам.
+One gotcha: in YAML 1.1, bare `off` / `on` / `yes` / `no` are parsed as booleans, so
+always quote `id` values. The exporter does this automatically.
 
-## Автодеплой по adb
+## Automated deployment via adb
 
-Для автоматизации «поставил новую версию → залил конфиг» есть headless-импорт YAML
-без единого тапа по телефону (нужна включённая отладка по USB или Wi-Fi):
+For automating "install the new version → push the config," there's a headless YAML
+import with zero taps on the phone (needs USB or Wi-Fi debugging enabled):
 
 ```bash
 adb install -r netswitcher.apk
@@ -243,16 +256,18 @@ adb shell am broadcast -n icu.nd4y.netswitcher/.action.ConfigImportReceiver \
     --es yaml_base64 "$(base64 -w0 my-config.yaml)"
 ```
 
-Броадкаст возвращает `result=0` при успехе (в `resultData` — число профилей), на
-телефоне показывается toast. YAML передаётся в base64, чтобы пережить shell-квотинг.
-Семантика — как у импорта из приложения: полная замена, битый файл отвергается целиком.
+The broadcast returns `result=0` on success (`resultData` holds the profile count), and
+a toast shows up on the phone. The YAML is passed as base64 to survive shell quoting.
+The semantics match in-app import: a full replace, and a broken file is rejected
+outright.
 
-Ресивер экспортирован, но закрыт разрешением `android.permission.DUMP` — оно есть у
-adb shell, а обычное стороннее приложение получить его не может, так что endpoint
-доступен только тому, у кого и так есть adb-доступ к устройству.
+The receiver is exported but locked behind the `android.permission.DUMP` permission —
+adb shell has it, but a regular third-party app can't obtain it, so the endpoint is
+only reachable by whoever already has adb access to the device.
 
 ## Ethernet
 
-Профиль Ethernet выключает Wi-Fi и мобильные данные, чтобы маршрутом по умолчанию стал
-проводной адаптер (USB-C ↔ Ethernet). Поднять сам интерфейс (`ip link set eth0 up`)
-получится только с root — без него это просто «освободить дорогу» уже поднятому линку.
+The Ethernet profile turns off Wi-Fi and mobile data so the wired adapter (USB-C ↔
+Ethernet) becomes the default route. Bringing the interface itself up
+(`ip link set eth0 up`) only works with root — without it, this just "clears the way"
+for a link that's already up.
