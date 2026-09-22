@@ -80,6 +80,12 @@ data class Profile(
     val password: String = "",
     val hiddenSsid: Boolean = false,
     val bssid: String = "",
+    /**
+     * WIFI: whether Android may rejoin this network on its own. Off means the saved
+     * network is written with auto-join disabled (`connect-network -d`), so the phone
+     * only lands on it when the button is pressed — the guest / IoT case.
+     */
+    val autoJoin: Boolean = true,
     // --- Cellular ---
     /** Subscription id of the SIM to make the default data SIM; -1 = leave as is. */
     val subscriptionId: Int = -1,
@@ -178,11 +184,12 @@ data class Config(
         const val TILE_COUNT = 8
 
         fun default(): Config {
-            val wifi = { id: String, name: String, ssid: String ->
-                Profile(id = id, name = name, kind = ProfileKind.WIFI, ssid = ssid)
-            }
+            fun wifi(id: String, name: String, ssid: String, autoJoin: Boolean = true) =
+                Profile(id = id, name = name, kind = ProfileKind.WIFI, ssid = ssid, autoJoin = autoJoin)
             // Placeholder SSIDs — the point is to show the shape of a profile, the
             // user replaces them (or imports a YAML config) with their own networks.
+            // Guest and IoT ship with auto-join off: those are networks you visit on
+            // purpose, not ones the phone should drift onto by itself.
             val profiles = listOf(
                 Profile(id = "wifi_sw", name = "Wi-Fi", kind = ProfileKind.WIFI_TOGGLE),
                 Profile(id = "lte_sw", name = "LTE", kind = ProfileKind.CELLULAR_TOGGLE),
@@ -190,9 +197,9 @@ data class Config(
                 Profile(id = "air_sw", name = "Авиарежим", kind = ProfileKind.AIRPLANE_TOGGLE),
                 wifi("home", "Home", "Home"),
                 wifi("home5", "Home 5G", "Home-5G"),
-                wifi("guest", "Guest", "Guest"),
-                wifi("guest5", "Guest 5G", "Guest-5G"),
-                wifi("iot", "IoT", "IoT"),
+                wifi("guest", "Guest", "Guest", autoJoin = false),
+                wifi("guest5", "Guest 5G", "Guest-5G", autoJoin = false),
+                wifi("iot", "IoT", "IoT", autoJoin = false),
                 Profile(
                     id = "lte",
                     // "only"-suffixed so the one-shot is distinguishable from the LTE

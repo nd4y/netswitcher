@@ -384,6 +384,12 @@ class SwitchEngine(context: Context) {
             }
             if (profile.hiddenSsid) append(" -h")
             if (profile.bssid.isNotBlank()) append(" -b ${profile.bssid}")
+            // `-d` lands in the saved network as allowAutojoin=false, and the framework
+            // copies that flag over on every re-add — so the button both connects now
+            // and keeps the phone from rejoining this SSID on its own later. Without
+            // `-d` a fresh WifiConfiguration carries allowAutojoin=true, which is how
+            // flipping the switch back on re-enables auto-join in the system entry.
+            if (!profile.autoJoin) append(" -d")
         }
 
     /** [logAs] is what lands in the on-screen log — pass a redacted copy for secrets. */
@@ -421,6 +427,7 @@ class SwitchEngine(context: Context) {
                     }
                 }
                 if (profile.hiddenSsid) builder.setIsHiddenSsid(true)
+                if (!profile.autoJoin) builder.setIsInitialAutojoinEnabled(false)
                 builder.setIsAppInteractionRequired(false)
                 val manager = appContext.getSystemService(WifiManager::class.java)
                 manager?.removeNetworkSuggestions(emptyList())

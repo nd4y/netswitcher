@@ -50,7 +50,7 @@ privileges, and NetSwitcher runs exactly the commands you'd type over `adb shell
 | Action | Command |
 |---|---|
 | Turn Wi-Fi on/off | `cmd wifi set-wifi-enabled enabled\|disabled` |
-| Connect to a network | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>]` |
+| Connect to a network | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>] [-d]` |
 | Turn the radio on only | `cmd wifi set-wifi-enabled enabled` — the network is picked by auto-connect |
 | Airplane mode | `cmd connectivity airplane-mode enable\|disable` → `settings put global airplane_mode_on` + broadcast |
 | Mobile data | `svc data enable\|disable` |
@@ -220,6 +220,16 @@ Wi-Fi profiles for specific networks also work as toggles: tapping a network you
 already connected to disconnects from it. There's no dedicated "disconnect" shell
 command, so this is done by turning the radio off — this behavior can be turned off
 with the "Tapping again disconnects" flag on the profile.
+
+Every Wi-Fi network also has an "Auto-connect" flag (`autoJoin` in YAML). Turn it off
+and connecting through NetSwitcher saves the network in Android with auto-join disabled
+(`connect-network … -d`): the phone no longer hops back onto it by itself when it comes
+into range or when the radio turns on — only when you press the button. That's for
+guest and IoT networks you visit on purpose rather than live on; the stock `Guest` and
+`IoT` profiles ship with it off. The flag is written into the system's saved network at
+the moment the app connects, so a network already saved in Android with auto-join on
+gets it turned off after the first connection via the button. The reverse holds too:
+connecting through a profile with auto-connect on turns it back on in the system entry.
 
 ## Profiles out of the box
 

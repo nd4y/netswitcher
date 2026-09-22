@@ -37,6 +37,7 @@ object YamlConfig {
                         appendLine("    bssid: ${quote(profile.bssid)}")
                     }
                     appendLine("    tapAgainDisconnects: ${profile.tapAgainDisconnects}")
+                    appendLine("    autoJoin: ${profile.autoJoin}   # false = только по кнопке")
                 }
 
                 ProfileKind.CELLULAR, ProfileKind.CELLULAR_TOGGLE -> {
@@ -98,6 +99,7 @@ object YamlConfig {
                 mobileData = map.enum("mobileData", MobileDataAction.entries, MobileDataAction.KEEP),
                 disableWifi = map.bool("disableWifi") ?: true,
                 tapAgainDisconnects = map.bool("tapAgainDisconnects") ?: true,
+                autoJoin = map.bool("autoJoin") ?: true,
             )
         }
         if (profiles.isEmpty()) error("В файле нет ни одного профиля")
