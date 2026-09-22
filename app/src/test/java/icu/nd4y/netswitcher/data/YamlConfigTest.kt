@@ -242,6 +242,37 @@ class YamlConfigTest {
         assertEquals(config.profiles, again.profiles)
     }
 
+    /**
+     * `overwriteSaved` is the escape hatch back to re-adding the network on every
+     * connect. It must default to off (Android's own Wi-Fi settings stay untouched)
+     * and an explicit `true` must survive the round trip.
+     */
+    @Test
+    fun `overwriteSaved defaults to off and an explicit on survives a round trip`() {
+        val yaml = """
+            profiles:
+              - id: "home"
+                name: "Home"
+                kind: WIFI
+                ssid: "Home"
+              - id: "lab"
+                name: "Lab"
+                kind: WIFI
+                ssid: "Lab"
+                overwriteSaved: true
+        """.trimIndent()
+
+        val config = YamlConfig.decode(yaml).getOrThrow()
+        assertFalse(config.profile("home")!!.overwriteSaved)
+        assertTrue(config.profile("lab")!!.overwriteSaved)
+
+        val text = YamlConfig.encode(config)
+        // Emitted only where it is on — the default case should not clutter the file.
+        assertEquals(1, Regex("overwriteSaved: true").findAll(text).count())
+        val again = YamlConfig.decode(text).getOrThrow()
+        assertEquals(config.profiles, again.profiles)
+    }
+
     @Test
     fun `garbage input fails instead of wiping the configuration`() {
         assertTrue(YamlConfig.decode("не yaml вовсе: [[[").isFailure)

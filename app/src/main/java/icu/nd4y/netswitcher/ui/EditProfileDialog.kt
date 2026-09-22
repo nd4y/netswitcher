@@ -257,6 +257,20 @@ private fun WifiFields(draft: Profile, onChange: (Profile) -> Unit) {
                 "запись сети при подключении через NetSwitcher.",
             style = MaterialTheme.typography.bodySmall,
         )
+        Spacer(Modifier.height(6.dp))
+        ToggleRow(
+            label = "Пересоздавать сохранённую сеть",
+            checked = draft.overwriteSaved,
+            onChange = { onChange(draft.copy(overwriteSaved = it)) },
+        )
+        Text(
+            text = "Выкл. — к сети, уже сохранённой в Android, NetSwitcher подключается по её " +
+                "id и ничего в ней не меняет: прокси, статический IP, MAC, лимит трафика и " +
+                "пароль остаются как в настройках Android, из профиля применяется только " +
+                "автоподключение. Вкл. — сеть каждый раз добавляется заново из профиля, " +
+                "и эти настройки затираются.",
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 
