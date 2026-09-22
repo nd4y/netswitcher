@@ -36,6 +36,7 @@ class EditProfileDialogTest {
         }
         compose.onNodeWithText("SSID").assertExists()
         compose.onNodeWithText("Пароль").assertExists()
+        compose.onNodeWithText("Автоподключение к сети").assertExists()
         compose.onNodeWithText("Сохранить").assertExists()
     }
 

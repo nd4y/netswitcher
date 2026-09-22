@@ -14,6 +14,10 @@
 #   CELLULAR_TOGGLE — переключатель мобильных данных
 #   ETHERNET_TOGGLE — переключатель проводного интерфейса
 #   AIRPLANE_TOGGLE — переключатель авиарежима
+#
+# autoJoin: false у Wi-Fi-профиля — при подключении через NetSwitcher сеть сохраняется
+#   в Android без автоподключения: телефон не вернётся в неё сам, только по кнопке.
+#   Для гостевых и IoT-сетей. Отсутствующий ключ = true.
 version: 1
 backend: AUTO          # AUTO | SHIZUKU | ROOT | NONE
 startNotification: SHADE   # SHADE | HEADS_UP
@@ -42,6 +46,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
+    autoJoin: true
     mobileData: KEEP
   - id: "home5"
     name: "Home 5G"
@@ -50,6 +55,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
+    autoJoin: true
     mobileData: KEEP
   - id: "guest"
     name: "Guest"
@@ -58,6 +64,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
+    autoJoin: false   # не возвращаться в сеть самостоятельно
     mobileData: KEEP
   - id: "iot"
     name: "IoT"
@@ -66,6 +73,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
+    autoJoin: false   # не возвращаться в сеть самостоятельно
     mobileData: KEEP
   - id: "lte"
     name: "LTE only"

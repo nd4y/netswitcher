@@ -246,6 +246,17 @@ private fun WifiFields(draft: Profile, onChange: (Profile) -> Unit) {
             checked = draft.hiddenSsid,
             onChange = { onChange(draft.copy(hiddenSsid = it)) },
         )
+        ToggleRow(
+            label = "Автоподключение к сети",
+            checked = draft.autoJoin,
+            onChange = { onChange(draft.copy(autoJoin = it)) },
+        )
+        Text(
+            text = "Выключите для гостевых и IoT-сетей: телефон не будет сам возвращаться " +
+                "в эту сеть, подключение — только кнопкой. Флаг попадает в системную " +
+                "запись сети при подключении через NetSwitcher.",
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 

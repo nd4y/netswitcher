@@ -1,6 +1,7 @@
 package icu.nd4y.netswitcher.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -211,6 +212,34 @@ class YamlConfigTest {
         // The missing-home fallback ("show everything") is trimmed the same way.
         val seeded = YamlConfig.decode(yaml.substringBefore("home:")).getOrThrow()
         assertEquals(listOf("w"), seeded.homeIds)
+    }
+
+    /**
+     * `autoJoin` is what keeps the phone off guest / IoT networks. A file written
+     * before the key existed must keep auto-join on, and an explicit `false` has to
+     * survive export → import — otherwise a round trip would silently re-enable it.
+     */
+    @Test
+    fun `autoJoin defaults to on and an explicit off survives a round trip`() {
+        val yaml = """
+            profiles:
+              - id: "home"
+                name: "Home"
+                kind: WIFI
+                ssid: "Home"
+              - id: "guest"
+                name: "Guest"
+                kind: WIFI
+                ssid: "Guest"
+                autoJoin: false
+        """.trimIndent()
+
+        val config = YamlConfig.decode(yaml).getOrThrow()
+        assertTrue(config.profile("home")!!.autoJoin)
+        assertFalse(config.profile("guest")!!.autoJoin)
+
+        val again = YamlConfig.decode(YamlConfig.encode(config)).getOrThrow()
+        assertEquals(config.profiles, again.profiles)
     }
 
     @Test
