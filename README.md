@@ -50,7 +50,8 @@ privileges, and NetSwitcher runs exactly the commands you'd type over `adb shell
 | Action | Command |
 |---|---|
 | Turn Wi-Fi on/off | `cmd wifi set-wifi-enabled enabled\|disabled` |
-| Connect to a network | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>] [-d]` |
+| Connect to a saved network | `IWifiManager.connect(netId)` — the app's own helper via `app_process`, the saved entry is left untouched (see "Saved networks") |
+| Add a network and connect | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>] [-d]` — only when the network isn't saved yet |
 | Turn the radio on only | `cmd wifi set-wifi-enabled enabled` — the network is picked by auto-connect |
 | Airplane mode | `cmd connectivity airplane-mode enable\|disable` → `settings put global airplane_mode_on` + broadcast |
 | Mobile data | `svc data enable\|disable` |
@@ -98,9 +99,39 @@ plus a rewritable tag.
 
 ## Wi-Fi passwords
 
-`cmd wifi connect-network` can't select an already-saved network — it adds the network
-anew every time, so for WPA2/WPA3 the profile needs the password on file. Passwords
-live in the app's private storage (DataStore) and are never sent anywhere.
+The profile's password is needed for the first connection — while the network isn't
+among Android's saved networks yet — and in the "Re-add the saved network" mode: in both
+cases the network is added with `cmd wifi connect-network`, which doesn't work without a
+password. An already-saved network is joined by its id (see below), and the profile's
+password isn't required for that. Passwords live in the app's private storage (DataStore)
+and are never sent anywhere.
+
+## Saved networks and Android's settings
+
+`cmd wifi connect-network` doesn't "pick" a network, it adds it anew — and in doing so
+rewrites the entry Android has saved with fresh defaults: MAC randomization, "metered",
+auto-connect, "send device name" — everything set in Android's Wi-Fi settings got reset
+on every button press. Proxy and static IP only survived because the merge in
+`WifiConfigManager` happens to leave them alone.
+
+So an already-saved network is joined differently: the app's own helper finds it among
+the saved networks (by SSID and security type) and calls `IWifiManager.connect(netId)` —
+exactly what a tap on the network in Android's settings does. The saved entry doesn't
+change: password, proxy, IP, MAC, metered override and hidden flag stay as they are in
+Android. The one thing applied from the profile is "Auto-connect" (via `allowAutojoin`),
+because the profile has an explicit switch for it. The verbose log shows what Android
+has stored for the network.
+
+If the network isn't saved, it's added from the profile with `connect-network` — that
+needs the password. The "Re-add the saved network" switch (`overwriteSaved: true` in
+YAML) brings back the old behaviour: the network is re-created from the profile on every
+connect, and its Android settings are replaced. If the helper fails to connect (say, the
+password stored in Android has changed), NetSwitcher reports that and overwrites
+nothing — that's what the switch is for.
+
+The helper is a class inside the app's own APK, launched by the privileged shell through
+`app_process` (the same way the system's `svc` tool works). It works with both Shizuku
+and root; `cmd wifi` has no connect-by-id.
 
 ## Buttons
 
@@ -223,7 +254,8 @@ with the "Tapping again disconnects" flag on the profile.
 
 Every Wi-Fi network also has an "Auto-connect" flag (`autoJoin` in YAML). Turn it off
 and connecting through NetSwitcher saves the network in Android with auto-join disabled
-(`connect-network … -d`): the phone no longer hops back onto it by itself when it comes
+(`-d` when the network is added, `allowAutojoin` for an already-saved one): the phone no
+longer hops back onto it by itself when it comes
 into range or when the radio turns on — only when you press the button. That's for
 guest and IoT networks you visit on purpose rather than live on; the stock `Guest` and
 `IoT` profiles ship with it off. The flag is written into the system's saved network at

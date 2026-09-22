@@ -207,27 +207,54 @@ class SwitchEngine(context: Context) {
             }
         }
 
-        if (profile.security.needsPassword && profile.password.isBlank()) {
-            return ActionResult(
-                false,
-                "Для «${profile.ssid}» нужен пароль — задайте его в профиле",
-                log,
-            )
-        }
-
         exec(shell, "cmd wifi set-wifi-enabled enabled", log)
         delay(700)
 
-        val command = buildConnectCommand(profile, redactPassword = false)
-        // The verbose log is shown on screen — the real command carries the Wi-Fi
-        // password, so the logged copy masks it.
-        val result = exec(shell, command, log, logAs = buildConnectCommand(profile, redactPassword = true))
+        // A network Android already knows is joined by id, so whatever the user set for
+        // it in Android's Wi-Fi settings (proxy, static IP, MAC, metered…) stays put.
+        // `connect-network` re-adds the entry and resets those, so it is reserved for
+        // networks not saved yet — and for profiles that ask for the old behaviour.
+        val joinedSaved = if (profile.overwriteSaved) {
+            log += "Профиль пересоздаёт сеть: настройки «${profile.ssid}» из Android будут заменены"
+            false
+        } else {
+            when (val saved = SavedNetworks.connect(appContext, shell, profile, log)) {
+                is SavedConnect.Connected -> true
+                is SavedConnect.NotSaved -> {
+                    log += "«${profile.ssid}» ещё не сохранена в Android — добавляю из профиля"
+                    false
+                }
+
+                is SavedConnect.Failed -> return ActionResult(
+                    false,
+                    "Не удалось подключиться к сохранённой сети «${profile.ssid}»: " +
+                        "${saved.reason}. Настройки сети в Android не тронуты. Чтобы " +
+                        "пересоздать её из профиля, включите «Пересоздавать сохранённую сеть».",
+                    log,
+                )
+            }
+        }
+
+        if (!joinedSaved) {
+            if (profile.security.needsPassword && profile.password.isBlank()) {
+                return ActionResult(
+                    false,
+                    "Для «${profile.ssid}» нужен пароль: сети ещё нет среди сохранённых " +
+                        "в Android, а добавить её можно только с паролем",
+                    log,
+                )
+            }
+            val command = buildConnectCommand(profile, redactPassword = false)
+            // The verbose log is shown on screen — the real command carries the Wi-Fi
+            // password, so the logged copy masks it.
+            val result = exec(shell, command, log, logAs = buildConnectCommand(profile, redactPassword = true))
+            if (!result.ok || result.output.contains("Error", ignoreCase = true)) {
+                applyMobileData(shell, profile.mobileData, log)
+                return ActionResult(false, "Не удалось подключиться: ${result.output.take(180)}", log)
+            }
+        }
 
         applyMobileData(shell, profile.mobileData, log)
-
-        if (!result.ok || result.output.contains("Error", ignoreCase = true)) {
-            return ActionResult(false, "Не удалось подключиться: ${result.output.take(180)}", log)
-        }
 
         val ssid = awaitSsid(shell, profile.ssid, log)
         return if (ssid != null) {
@@ -384,11 +411,9 @@ class SwitchEngine(context: Context) {
             }
             if (profile.hiddenSsid) append(" -h")
             if (profile.bssid.isNotBlank()) append(" -b ${profile.bssid}")
-            // `-d` lands in the saved network as allowAutojoin=false, and the framework
-            // copies that flag over on every re-add — so the button both connects now
-            // and keeps the phone from rejoining this SSID on its own later. Without
-            // `-d` a fresh WifiConfiguration carries allowAutojoin=true, which is how
-            // flipping the switch back on re-enables auto-join in the system entry.
+            // `-d` lands in the saved network as allowAutojoin=false. This command only
+            // runs when the network is added (or a profile insists on re-adding it);
+            // for an already-saved network the helper sets the flag via allowAutojoin.
             if (!profile.autoJoin) append(" -d")
         }
 

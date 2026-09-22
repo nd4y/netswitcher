@@ -18,6 +18,10 @@
 # autoJoin: false у Wi-Fi-профиля — при подключении через NetSwitcher сеть сохраняется
 #   в Android без автоподключения: телефон не вернётся в неё сам, только по кнопке.
 #   Для гостевых и IoT-сетей. Отсутствующий ключ = true.
+# overwriteSaved: true у Wi-Fi-профиля — пересоздавать сеть из профиля при каждом
+#   подключении, затирая её настройки в Android (прокси, IP, MAC, лимит трафика).
+#   По умолчанию false: к уже сохранённой сети NetSwitcher подключается по id и
+#   ничего в ней не меняет, пароль в профиле тогда не обязателен.
 version: 1
 backend: AUTO          # AUTO | SHIZUKU | ROOT | NONE
 startNotification: SHADE   # SHADE | HEADS_UP

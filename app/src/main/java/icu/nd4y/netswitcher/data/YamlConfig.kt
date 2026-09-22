@@ -38,6 +38,9 @@ object YamlConfig {
                     }
                     appendLine("    tapAgainDisconnects: ${profile.tapAgainDisconnects}")
                     appendLine("    autoJoin: ${profile.autoJoin}   # false = только по кнопке")
+                    if (profile.overwriteSaved) {
+                        appendLine("    overwriteSaved: true   # пересоздавать сеть из профиля, затирая настройки Android")
+                    }
                 }
 
                 ProfileKind.CELLULAR, ProfileKind.CELLULAR_TOGGLE -> {
@@ -100,6 +103,7 @@ object YamlConfig {
                 disableWifi = map.bool("disableWifi") ?: true,
                 tapAgainDisconnects = map.bool("tapAgainDisconnects") ?: true,
                 autoJoin = map.bool("autoJoin") ?: true,
+                overwriteSaved = map.bool("overwriteSaved") ?: false,
             )
         }
         if (profiles.isEmpty()) error("В файле нет ни одного профиля")

@@ -47,12 +47,15 @@ enum class ProfileKind {
         get() = isToggle || this == WIFI
 }
 
-/** Security token accepted by `cmd wifi connect-network`. */
-enum class WifiSecurity(val token: String, val needsPassword: Boolean) {
-    WPA2("wpa2", true),
-    WPA3("wpa3", true),
-    OPEN("open", false),
-    OWE("owe", false),
+/**
+ * Security token accepted by `cmd wifi connect-network`, plus the matching
+ * `WifiConfiguration.SECURITY_TYPE_*` constant the helper uses to find the saved entry.
+ */
+enum class WifiSecurity(val token: String, val needsPassword: Boolean, val frameworkType: Int) {
+    WPA2("wpa2", true, 2),
+    WPA3("wpa3", true, 4),
+    OPEN("open", false, 0),
+    OWE("owe", false, 6),
 }
 
 enum class MobileDataAction { KEEP, ENABLE, DISABLE }
@@ -86,6 +89,13 @@ data class Profile(
      * only lands on it when the button is pressed — the guest / IoT case.
      */
     val autoJoin: Boolean = true,
+    /**
+     * WIFI: re-add the network from this profile on every connect (the pre-1.20
+     * behaviour). Off — the default — joins the entry Android already has by its id,
+     * leaving proxy, static IP, MAC randomization, metered override and password as
+     * set in Android's Wi-Fi settings; only [autoJoin] is applied from the profile.
+     */
+    val overwriteSaved: Boolean = false,
     // --- Cellular ---
     /** Subscription id of the SIM to make the default data SIM; -1 = leave as is. */
     val subscriptionId: Int = -1,
