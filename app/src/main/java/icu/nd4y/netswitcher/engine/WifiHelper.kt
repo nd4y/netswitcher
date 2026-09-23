@@ -21,7 +21,7 @@ import kotlin.system.exitProcess
  *
  * Usage (see [SavedNetworks]):
  *   CLASSPATH=<apk> app_process /system/bin icu.nd4y.netswitcher.engine.WifiHelper \
- *       connect <ssid> <securityType> <autojoin 1|0>
+ *       connect <ssid> <securityType> <autojoin 1|0|keep>
  *
  * Exit codes: 0 — connect requested (stdout: `ok id=<netId>` + a summary line),
  * 2 — no such saved network, 1 — error (stderr has the reason).
@@ -75,7 +75,7 @@ object WifiHelper {
     }
 
     private fun usage(): Int {
-        System.err.println("usage: connect <ssid> <securityType> <autojoin 1|0>")
+        System.err.println("usage: connect <ssid> <securityType> <autojoin 1|0|keep>")
         return 1
     }
 

@@ -1,7 +1,15 @@
 package icu.nd4y.netswitcher.data
 
 import icu.nd4y.netswitcher.R
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 
 /** What a button actually does when pressed. */
 enum class ProfileKind {
@@ -58,6 +66,52 @@ enum class WifiSecurity(val token: String, val needsPassword: Boolean, val frame
     OWE("owe", false, 6),
 }
 
+/**
+ * What a Wi-Fi profile does to the network's auto-join flag in Android.
+ *
+ * [SYSTEM] leaves whatever Android has — the default, so a button press never
+ * silently flips a setting made in Android's Wi-Fi settings. [OFF] is the guest /
+ * IoT case: the phone only lands on the network when the button is pressed. [ON]
+ * re-enables auto-join on every connect.
+ */
+@Serializable(with = AutoJoinSerializer::class)
+enum class AutoJoin {
+    SYSTEM, ON, OFF;
+
+    companion object {
+        /** Accepts the enum names and the 1.19 booleans (`true` = ON, `false` = OFF). */
+        fun fromString(raw: String): AutoJoin {
+            val value = raw.trim()
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }?.let { return it }
+            return when (value.lowercase()) {
+                "true", "yes", "on", "1" -> ON
+                "false", "no", "off", "0" -> OFF
+                else -> SYSTEM
+            }
+        }
+    }
+}
+
+/**
+ * Configs persisted by 1.19 carry `"autoJoin": true|false`; a decode failure there
+ * would reset the whole config to defaults, so the JSON booleans stay readable.
+ */
+object AutoJoinSerializer : KSerializer<AutoJoin> {
+    override val descriptor = PrimitiveSerialDescriptor("AutoJoin", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: AutoJoin) = encoder.encodeString(value.name)
+
+    override fun deserialize(decoder: Decoder): AutoJoin {
+        val json = decoder as? JsonDecoder ?: return AutoJoin.fromString(decoder.decodeString())
+        val element = json.decodeJsonElement() as? JsonPrimitive ?: return AutoJoin.SYSTEM
+        return when {
+            element.isString -> AutoJoin.fromString(element.content)
+            else -> element.booleanOrNull?.let { if (it) AutoJoin.ON else AutoJoin.OFF }
+                ?: AutoJoin.SYSTEM
+        }
+    }
+}
+
 enum class MobileDataAction { KEEP, ENABLE, DISABLE }
 
 /** Which privileged backend to use for the shell commands. */
@@ -84,11 +138,11 @@ data class Profile(
     val hiddenSsid: Boolean = false,
     val bssid: String = "",
     /**
-     * WIFI: whether Android may rejoin this network on its own. Off means the saved
-     * network is written with auto-join disabled (`connect-network -d`), so the phone
-     * only lands on it when the button is pressed — the guest / IoT case.
+     * WIFI: what to do with Android's auto-join flag for this network — see [AutoJoin].
+     * Applied when the network is added (`connect-network -d`) and, for a saved one,
+     * via `allowAutojoin`; [AutoJoin.SYSTEM] touches nothing.
      */
-    val autoJoin: Boolean = true,
+    val autoJoin: AutoJoin = AutoJoin.SYSTEM,
     /**
      * WIFI: re-add the network from this profile on every connect (the pre-1.20
      * behaviour). Off — the default — joins the entry Android already has by its id,
@@ -194,7 +248,7 @@ data class Config(
         const val TILE_COUNT = 8
 
         fun default(): Config {
-            fun wifi(id: String, name: String, ssid: String, autoJoin: Boolean = true) =
+            fun wifi(id: String, name: String, ssid: String, autoJoin: AutoJoin = AutoJoin.SYSTEM) =
                 Profile(id = id, name = name, kind = ProfileKind.WIFI, ssid = ssid, autoJoin = autoJoin)
             // Placeholder SSIDs — the point is to show the shape of a profile, the
             // user replaces them (or imports a YAML config) with their own networks.
@@ -207,9 +261,9 @@ data class Config(
                 Profile(id = "air_sw", name = "Авиарежим", kind = ProfileKind.AIRPLANE_TOGGLE),
                 wifi("home", "Home", "Home"),
                 wifi("home5", "Home 5G", "Home-5G"),
-                wifi("guest", "Guest", "Guest", autoJoin = false),
-                wifi("guest5", "Guest 5G", "Guest-5G", autoJoin = false),
-                wifi("iot", "IoT", "IoT", autoJoin = false),
+                wifi("guest", "Guest", "Guest", autoJoin = AutoJoin.OFF),
+                wifi("guest5", "Guest 5G", "Guest-5G", autoJoin = AutoJoin.OFF),
+                wifi("iot", "IoT", "IoT", autoJoin = AutoJoin.OFF),
                 Profile(
                     id = "lte",
                     // "only"-suffixed so the one-shot is distinguishable from the LTE
