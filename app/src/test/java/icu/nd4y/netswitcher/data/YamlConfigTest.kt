@@ -215,12 +215,13 @@ class YamlConfigTest {
     }
 
     /**
-     * `autoJoin` is what keeps the phone off guest / IoT networks. A file written
-     * before the key existed must keep auto-join on, and an explicit `false` has to
-     * survive export → import — otherwise a round trip would silently re-enable it.
+     * `autoJoin` is what keeps the phone off guest / IoT networks. A file without the
+     * key must not touch Android's flag (SYSTEM); the 1.19 booleans and bare YAML
+     * `ON` / `OFF` (booleans in YAML 1.1) map onto ON / OFF; and every value has to
+     * survive export → import.
      */
     @Test
-    fun `autoJoin defaults to on and an explicit off survives a round trip`() {
+    fun `autoJoin defaults to SYSTEM, accepts legacy booleans and survives a round trip`() {
         val yaml = """
             profiles:
               - id: "home"
@@ -232,11 +233,23 @@ class YamlConfigTest {
                 kind: WIFI
                 ssid: "Guest"
                 autoJoin: false
+              - id: "iot"
+                name: "IoT"
+                kind: WIFI
+                ssid: "IoT"
+                autoJoin: OFF
+              - id: "work"
+                name: "Work"
+                kind: WIFI
+                ssid: "Work"
+                autoJoin: "ON"
         """.trimIndent()
 
         val config = YamlConfig.decode(yaml).getOrThrow()
-        assertTrue(config.profile("home")!!.autoJoin)
-        assertFalse(config.profile("guest")!!.autoJoin)
+        assertEquals(AutoJoin.SYSTEM, config.profile("home")!!.autoJoin)
+        assertEquals(AutoJoin.OFF, config.profile("guest")!!.autoJoin)
+        assertEquals(AutoJoin.OFF, config.profile("iot")!!.autoJoin)
+        assertEquals(AutoJoin.ON, config.profile("work")!!.autoJoin)
 
         val again = YamlConfig.decode(YamlConfig.encode(config)).getOrThrow()
         assertEquals(config.profiles, again.profiles)

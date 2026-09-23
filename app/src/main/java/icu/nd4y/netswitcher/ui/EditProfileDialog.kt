@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,9 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import icu.nd4y.netswitcher.data.AutoJoin
 import icu.nd4y.netswitcher.data.MobileDataAction
 import icu.nd4y.netswitcher.data.Profile
 import icu.nd4y.netswitcher.data.ProfileKind
@@ -219,11 +224,21 @@ private fun WifiFields(draft: Profile, onChange: (Profile) -> Unit) {
         )
         if (draft.security.needsPassword) {
             Spacer(Modifier.height(10.dp))
+            // Masked by default — the editor opens over the shoulder of whoever is around.
+            var showPassword by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = draft.password,
                 onValueChange = { onChange(draft.copy(password = it)) },
                 label = { Text("Пароль") },
                 singleLine = true,
+                visualTransformation =
+                    if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    TextButton(onClick = { showPassword = !showPassword }) {
+                        Text(if (showPassword) "Скрыть" else "Показать")
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
@@ -246,15 +261,18 @@ private fun WifiFields(draft: Profile, onChange: (Profile) -> Unit) {
             checked = draft.hiddenSsid,
             onChange = { onChange(draft.copy(hiddenSsid = it)) },
         )
-        ToggleRow(
-            label = "Автоподключение к сети",
-            checked = draft.autoJoin,
-            onChange = { onChange(draft.copy(autoJoin = it)) },
+        Spacer(Modifier.height(6.dp))
+        Text("Автоподключение", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(6.dp))
+        SelectorRow(
+            options = AutoJoin.entries.map { it to autoJoinLabel(it) },
+            selected = draft.autoJoin,
+            onSelect = { onChange(draft.copy(autoJoin = it)) },
         )
         Text(
-            text = "Выключите для гостевых и IoT-сетей: телефон не будет сам возвращаться " +
-                "в эту сеть, подключение — только кнопкой. Флаг попадает в системную " +
-                "запись сети при подключении через NetSwitcher.",
+            text = "«Как в Android» ничего не меняет. «Выключено» — для гостевых и IoT-сетей: " +
+                "телефон не будет сам возвращаться в сеть, подключение — только кнопкой. " +
+                "Значение попадает в системную запись сети при подключении через NetSwitcher.",
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(6.dp))
@@ -266,9 +284,9 @@ private fun WifiFields(draft: Profile, onChange: (Profile) -> Unit) {
         Text(
             text = "Выкл. — к сети, уже сохранённой в Android, NetSwitcher подключается по её " +
                 "id и ничего в ней не меняет: прокси, статический IP, MAC, лимит трафика и " +
-                "пароль остаются как в настройках Android, из профиля применяется только " +
-                "автоподключение. Вкл. — сеть каждый раз добавляется заново из профиля, " +
-                "и эти настройки затираются.",
+                "пароль остаются как в настройках Android; из профиля применяется только " +
+                "автоподключение, если оно не «Как в Android». Вкл. — сеть каждый раз " +
+                "добавляется заново из профиля, и эти настройки затираются.",
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -401,6 +419,12 @@ private fun kindLabel(kind: ProfileKind): String = when (kind) {
     ProfileKind.CELLULAR_TOGGLE -> "⇄ Моб. данные"
     ProfileKind.ETHERNET_TOGGLE -> "⇄ Ethernet"
     ProfileKind.AIRPLANE_TOGGLE -> "⇄ Авиарежим"
+}
+
+private fun autoJoinLabel(value: AutoJoin): String = when (value) {
+    AutoJoin.SYSTEM -> "Как в Android"
+    AutoJoin.ON -> "Включено"
+    AutoJoin.OFF -> "Выключено"
 }
 
 private fun mobileDataLabel(action: MobileDataAction): String = when (action) {

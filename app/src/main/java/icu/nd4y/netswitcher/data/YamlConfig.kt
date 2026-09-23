@@ -37,7 +37,8 @@ object YamlConfig {
                         appendLine("    bssid: ${quote(profile.bssid)}")
                     }
                     appendLine("    tapAgainDisconnects: ${profile.tapAgainDisconnects}")
-                    appendLine("    autoJoin: ${profile.autoJoin}   # false = только по кнопке")
+                    // Quoted: bare ON/OFF are booleans in YAML 1.1 (accepted too, but ugly).
+                    appendLine("    autoJoin: \"${profile.autoJoin.name}\"   # SYSTEM = как в Android | ON | OFF")
                     if (profile.overwriteSaved) {
                         appendLine("    overwriteSaved: true   # пересоздавать сеть из профиля, затирая настройки Android")
                     }
@@ -102,7 +103,7 @@ object YamlConfig {
                 mobileData = map.enum("mobileData", MobileDataAction.entries, MobileDataAction.KEEP),
                 disableWifi = map.bool("disableWifi") ?: true,
                 tapAgainDisconnects = map.bool("tapAgainDisconnects") ?: true,
-                autoJoin = map.bool("autoJoin") ?: true,
+                autoJoin = map.autoJoin(),
                 overwriteSaved = map.bool("overwriteSaved") ?: false,
             )
         }
@@ -167,6 +168,16 @@ object YamlConfig {
         is Boolean -> value
         is String -> value.trim().lowercase() in setOf("true", "yes", "on", "1")
         else -> null
+    }
+
+    /**
+     * SYSTEM | ON | OFF. A bare `ON` / `OFF` arrives as a YAML 1.1 boolean, and files
+     * from 1.19 carry `true` / `false` — both map onto ON / OFF.
+     */
+    private fun Map<*, *>.autoJoin(): AutoJoin = when (val raw = this["autoJoin"]) {
+        null -> AutoJoin.SYSTEM
+        is Boolean -> if (raw) AutoJoin.ON else AutoJoin.OFF
+        else -> AutoJoin.fromString(raw.toString())
     }
 
     private fun <T : Enum<T>> Map<*, *>.enum(key: String, values: List<T>, fallback: T): T {

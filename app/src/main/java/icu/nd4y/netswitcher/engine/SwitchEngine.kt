@@ -6,6 +6,7 @@ import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSuggestion
 import android.provider.Settings
 import icu.nd4y.netswitcher.data.ActionResult
+import icu.nd4y.netswitcher.data.AutoJoin
 import icu.nd4y.netswitcher.data.Backend
 import icu.nd4y.netswitcher.data.MobileDataAction
 import icu.nd4y.netswitcher.data.Profile
@@ -411,10 +412,11 @@ class SwitchEngine(context: Context) {
             }
             if (profile.hiddenSsid) append(" -h")
             if (profile.bssid.isNotBlank()) append(" -b ${profile.bssid}")
-            // `-d` lands in the saved network as allowAutojoin=false. This command only
-            // runs when the network is added (or a profile insists on re-adding it);
-            // for an already-saved network the helper sets the flag via allowAutojoin.
-            if (!profile.autoJoin) append(" -d")
+            // `-d` lands in the saved network as allowAutojoin=false; a fresh entry has
+            // it on, so ON and SYSTEM need nothing here. This command only runs when the
+            // network is added (or a profile insists on re-adding it); for an
+            // already-saved network the helper applies the choice via allowAutojoin.
+            if (profile.autoJoin == AutoJoin.OFF) append(" -d")
         }
 
     /** [logAs] is what lands in the on-screen log — pass a redacted copy for secrets. */
@@ -452,7 +454,7 @@ class SwitchEngine(context: Context) {
                     }
                 }
                 if (profile.hiddenSsid) builder.setIsHiddenSsid(true)
-                if (!profile.autoJoin) builder.setIsInitialAutojoinEnabled(false)
+                if (profile.autoJoin == AutoJoin.OFF) builder.setIsInitialAutojoinEnabled(false)
                 builder.setIsAppInteractionRequired(false)
                 val manager = appContext.getSystemService(WifiManager::class.java)
                 manager?.removeNetworkSuggestions(emptyList())

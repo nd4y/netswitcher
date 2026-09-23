@@ -118,9 +118,9 @@ So an already-saved network is joined differently: the app's own helper finds it
 the saved networks (by SSID and security type) and calls `IWifiManager.connect(netId)` —
 exactly what a tap on the network in Android's settings does. The saved entry doesn't
 change: password, proxy, IP, MAC, metered override and hidden flag stay as they are in
-Android. The one thing applied from the profile is "Auto-connect" (via `allowAutojoin`),
-because the profile has an explicit switch for it. The verbose log shows what Android
-has stored for the network.
+Android. The one thing that may be applied from the profile is "Auto-connect" (via
+`allowAutojoin`), and only when the profile says "On" or "Off"; "As in Android" touches
+nothing. The verbose log shows what Android has stored for the network.
 
 If the network isn't saved, it's added from the profile with `connect-network` — that
 needs the password. The "Re-add the saved network" switch (`overwriteSaved: true` in
@@ -130,8 +130,8 @@ password stored in Android has changed), NetSwitcher reports that and overwrites
 nothing — that's what the switch is for.
 
 The helper is a class inside the app's own APK, launched by the privileged shell through
-`app_process` (the same way the system's `svc` tool works). It works with both Shizuku
-and root; `cmd wifi` has no connect-by-id.
+`app_process` (the same way the system's `svc` tool works). It is built for both
+backends, Shizuku and root; `cmd wifi` has no connect-by-id.
 
 ## Buttons
 
@@ -252,16 +252,17 @@ already connected to disconnects from it. There's no dedicated "disconnect" shel
 command, so this is done by turning the radio off — this behavior can be turned off
 with the "Tapping again disconnects" flag on the profile.
 
-Every Wi-Fi network also has an "Auto-connect" flag (`autoJoin` in YAML). Turn it off
-and connecting through NetSwitcher saves the network in Android with auto-join disabled
-(`-d` when the network is added, `allowAutojoin` for an already-saved one): the phone no
-longer hops back onto it by itself when it comes
-into range or when the radio turns on — only when you press the button. That's for
-guest and IoT networks you visit on purpose rather than live on; the stock `Guest` and
-`IoT` profiles ship with it off. The flag is written into the system's saved network at
-the moment the app connects, so a network already saved in Android with auto-join on
-gets it turned off after the first connection via the button. The reverse holds too:
-connecting through a profile with auto-connect on turns it back on in the system entry.
+Every Wi-Fi network also has an "Auto-connect" setting (`autoJoin` in YAML) with three
+values. "As in Android" (`SYSTEM`, the default) — NetSwitcher leaves the flag alone.
+"Off" (`OFF`) — connecting through NetSwitcher saves the network in Android with
+auto-join disabled (`-d` when the network is added, `allowAutojoin` for an already-saved
+one): the phone no longer hops back onto it by itself when it comes into range or when
+the radio turns on — only when you press the button. That's for guest and IoT networks
+you visit on purpose rather than live on; the stock `Guest` and `IoT` profiles ship with
+`OFF`. "On" (`ON`) does the opposite and re-enables auto-join in the system entry on
+every connect. The value is applied at the moment the app connects, so for a network
+already saved in Android it changes after the first button press. Version 1.19
+configuration files with `autoJoin: true` / `false` are read as `ON` / `OFF`.
 
 ## Profiles out of the box
 

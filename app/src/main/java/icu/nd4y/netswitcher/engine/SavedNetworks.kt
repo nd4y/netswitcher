@@ -1,6 +1,7 @@
 package icu.nd4y.netswitcher.engine
 
 import android.content.Context
+import icu.nd4y.netswitcher.data.AutoJoin
 import icu.nd4y.netswitcher.data.Profile
 
 /** Outcome of asking [WifiHelper] to join a network Android already has saved. */
@@ -34,7 +35,13 @@ object SavedNetworks {
             append(WifiHelper::class.java.name)
             append(" connect ").append(shQuote(profile.ssid))
             append(' ').append(profile.security.frameworkType)
-            append(' ').append(if (profile.autoJoin) 1 else 0)
+            append(' ').append(
+                when (profile.autoJoin) {
+                    AutoJoin.SYSTEM -> "keep"
+                    AutoJoin.ON -> "1"
+                    AutoJoin.OFF -> "0"
+                }
+            )
         }
         val result = shell.exec(command)
 
@@ -48,7 +55,12 @@ object SavedNetworks {
         return when {
             result.exitCode == 0 && verdict.startsWith("ok") -> {
                 val netId = verdict.substringAfter("id=", "").trim().toIntOrNull() ?: -1
-                log += "Подключение к сохранённой сети #$netId — её настройки в Android не тронуты"
+                log += "Подключение к сохранённой сети #$netId — её настройки в Android не тронуты" +
+                    when (profile.autoJoin) {
+                        AutoJoin.SYSTEM -> ""
+                        AutoJoin.ON -> ", автоподключение включено по профилю"
+                        AutoJoin.OFF -> ", автоподключение выключено по профилю"
+                    }
                 SavedConnect.Connected(netId)
             }
 

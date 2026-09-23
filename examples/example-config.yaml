@@ -15,9 +15,10 @@
 #   ETHERNET_TOGGLE — переключатель проводного интерфейса
 #   AIRPLANE_TOGGLE — переключатель авиарежима
 #
-# autoJoin: false у Wi-Fi-профиля — при подключении через NetSwitcher сеть сохраняется
-#   в Android без автоподключения: телефон не вернётся в неё сам, только по кнопке.
-#   Для гостевых и IoT-сетей. Отсутствующий ключ = true.
+# autoJoin у Wi-Fi-профиля: "SYSTEM" (по умолчанию) — не трогать настройку Android;
+#   "OFF" — сохранить сеть без автоподключения: телефон не вернётся в неё сам, только
+#   по кнопке (для гостевых и IoT-сетей); "ON" — включать автоподключение. Пишите в
+#   кавычках: голые ON/OFF в YAML 1.1 — булевы (они тоже принимаются, как и true/false).
 # overwriteSaved: true у Wi-Fi-профиля — пересоздавать сеть из профиля при каждом
 #   подключении, затирая её настройки в Android (прокси, IP, MAC, лимит трафика).
 #   По умолчанию false: к уже сохранённой сети NetSwitcher подключается по id и
@@ -50,7 +51,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
-    autoJoin: true
+    autoJoin: "SYSTEM"
     mobileData: KEEP
   - id: "home5"
     name: "Home 5G"
@@ -59,7 +60,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
-    autoJoin: true
+    autoJoin: "SYSTEM"
     mobileData: KEEP
   - id: "guest"
     name: "Guest"
@@ -68,7 +69,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
-    autoJoin: false   # не возвращаться в сеть самостоятельно
+    autoJoin: "OFF"   # не возвращаться в сеть самостоятельно
     mobileData: KEEP
   - id: "iot"
     name: "IoT"
@@ -77,7 +78,7 @@ profiles:
     security: WPA2
     password: ""
     tapAgainDisconnects: true
-    autoJoin: false   # не возвращаться в сеть самостоятельно
+    autoJoin: "OFF"   # не возвращаться в сеть самостоятельно
     mobileData: KEEP
   - id: "lte"
     name: "LTE only"
