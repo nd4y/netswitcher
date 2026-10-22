@@ -38,31 +38,31 @@ sections.
 Starting with Android 10, a regular app **cannot** turn Wi-Fi on/off or connect to a
 specific saved network:
 
-* `WifiManager.setWifiEnabled()` and `enableNetwork()` are no-ops for third-party apps;
-* `WifiNetworkSpecifier` binds the network to the requesting app only, not to the device;
-* `WifiNetworkSuggestion` merely suggests a network to the system — the system decides
+- `WifiManager.setWifiEnabled()` and `enableNetwork()` are no-ops for third-party apps;
+- `WifiNetworkSpecifier` binds the network to the requesting app only, not to the device;
+- `WifiNetworkSuggestion` merely suggests a network to the system — the system decides
   if and when to connect.
 
 The working approach without flashing anything or rooting is
 **[Shizuku](https://shizuku.rikka.app/)**: it grants the app access to adb's shell
 privileges, and NetSwitcher runs exactly the commands you'd type over `adb shell`:
 
-| Action | Command |
-|---|---|
-| Turn Wi-Fi on/off | `cmd wifi set-wifi-enabled enabled\|disabled` |
+| Action                     | Command                                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Turn Wi-Fi on/off          | `cmd wifi set-wifi-enabled enabled\|disabled`                                                                                    |
 | Connect to a saved network | `IWifiManager.connect(netId)` — the app's own helper via `app_process`, the saved entry is left untouched (see "Saved networks") |
-| Add a network and connect | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>] [-d]` — only when the network isn't saved yet |
-| Turn the radio on only | `cmd wifi set-wifi-enabled enabled` — the network is picked by auto-connect |
-| Airplane mode | `cmd connectivity airplane-mode enable\|disable` → `settings put global airplane_mode_on` + broadcast |
-| Mobile data | `svc data enable\|disable` |
-| Default data SIM | `ISub.setDefaultDataSubId()` → `cmd phone set-default-data-sub` → `settings put global multi_sim_data_call` |
-| Bring up Ethernet | `ip link set eth0 up` (root only) |
+| Add a network and connect  | `cmd wifi connect-network <ssid> wpa2 <pass> [-h] [-b <bssid>] [-d]` — only when the network isn't saved yet                     |
+| Turn the radio on only     | `cmd wifi set-wifi-enabled enabled` — the network is picked by auto-connect                                                      |
+| Airplane mode              | `cmd connectivity airplane-mode enable\|disable` → `settings put global airplane_mode_on` + broadcast                            |
+| Mobile data                | `svc data enable\|disable`                                                                                                       |
+| Default data SIM           | `ISub.setDefaultDataSubId()` → `cmd phone set-default-data-sub` → `settings put global multi_sim_data_call`                      |
+| Bring up Ethernet          | `ip link set eth0 up` (root only)                                                                                                |
 
 Three privilege sources are supported, switchable in Settings:
 
-* **Shizuku** — the primary one, no root needed;
-* **Root** (`su -c`) — if the phone is rooted;
-* **None** — degraded mode: the app registers a Wi-Fi suggestion and opens the system
+- **Shizuku** — the primary one, no root needed;
+- **Root** (`su -c`) — if the phone is rooted;
+- **None** — degraded mode: the app registers a Wi-Fi suggestion and opens the system
   network panel, then it's manual from there.
 
 ### Setting up Shizuku
@@ -76,21 +76,21 @@ Three privilege sources are supported, switchable in Settings:
 
 On the "Networks" tab, every Wi-Fi card has a "Share" button, offering three ways to do it:
 
-* **QR code** — the standard `WIFI:T:WPA;S:<ssid>;P:<pass>;;` format, read by the stock
+- **QR code** — the standard `WIFI:T:WPA;S:<ssid>;P:<pass>;;` format, read by the stock
   camera app on Android and iOS, which immediately offers to connect. Special characters
   in the SSID and password are escaped per the format's rules.
-* **NFC tag** — writes the credentials to a rewritable tag using the
+- **NFC tag** — writes the credentials to a rewritable tag using the
   `application/vnd.wfa.wsc` format (Wi-Fi Simple Configuration) — the same payload
   Android itself writes for "share Wi-Fi via NFC." Any phone tapped against the tag gets
   a prompt to connect.
-* **Tag emulation (NFC HCE)** — the phone itself acts as an NFC tag via Host Card
+- **Tag emulation (NFC HCE)** — the phone itself acts as an NFC tag via Host Card
   Emulation: it implements an NFC Forum Type 4 Tag (AID `D2760000850101`) and hands the
   same Wi-Fi NDEF record to the reading device. This replaces Android Beam (removed in
   Android 10) for the phone-to-phone case. It's fussier than the other methods — the
   sending phone's screen has to be on and unlocked, both devices need NFC, and results
   vary by firmware (most reliable Pixel↔Pixel) — which is why QR remains the primary
   method.
-* **System "Share" menu** — send as text (SSID + password + a `WIFI:` string) or as a
+- **System "Share" menu** — send as text (SSID + password + a `WIFI:` string) or as a
   QR-code image through the regular share sheet.
 
 The QR code is generated in-app (ZXing core), the image is served via `FileProvider`.
@@ -314,3 +314,7 @@ The Ethernet profile turns off Wi-Fi and mobile data so the wired adapter (USB-C
 Ethernet) becomes the default route. Bringing the interface itself up
 (`ip link set eth0 up`) only works with root — without it, this just "clears the way"
 for a link that's already up.
+
+## Development standard
+
+This repository adopts version 0.4.0 of the shared development standard. Read the [English guide](docs/en/development-standard.md) or [Russian guide](docs/ru/development-standard.md). The local toolkit checks staged secrets, changed-file formatting and bilingual documentation before merge. Existing product CI remains in place. Adoption is in progress; product acceptance and legacy-document translation are recorded separately in .repo-policy.json.
